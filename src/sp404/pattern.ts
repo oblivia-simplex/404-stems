@@ -7,6 +7,9 @@ const PAD_NONE = 0x80;
 const END_OF_DATA = 0x8c;
 const PAD_BASE = 0x2f;
 
+// Footer byte 4 → [beats per bar, beat unit]. Codes seen in real projects; others are inferred.
+const METERS: Record<number, [number, number]> = { 0: [4, 4], 1: [3, 4], 4: [5, 4] };
+
 export interface PatternEvent {
   tick: number;
   pad: number; // 0..159
@@ -21,6 +24,9 @@ export interface Pattern {
   label: string; // e.g. "C2"
   bars: number;
   ticks: number;
+  // Meter, from footer byte 4 (see METERS).
+  beatsPerBar: number;
+  beatUnit: number; // 4 = quarter-note beats, 8 = eighth-note beats
   events: PatternEvent[];
 }
 
@@ -56,8 +62,23 @@ export function readPattern(file: string, number: number): Pattern {
     }
     tick += r[0];
   }
-  const bars = buf[buf.length - 8];
-  return { number, label: patternLabel(number), bars, ticks: bars * TICKS_PER_BAR, events };
+  const bars = buf[buf.length - 8] || 1;
+  // Footer byte 4 is the time signature. The record stream can run past the pattern's end (trailing
+  // time-fillers, with no notes), so the length comes from bars × bar length, not from the stream.
+  const known = METERS[buf[buf.length - 4]];
+  let beatsPerBar: number;
+  let beatUnit: number;
+  if (known) {
+    [beatsPerBar, beatUnit] = known;
+  } else {
+    // Unknown code: infer the bar length from the stream, falling back to 4/4.
+    const barTicks = tick > 0 && tick % bars === 0 ? tick / bars : TICKS_PER_BAR;
+    [beatsPerBar, beatUnit] =
+      barTicks % PPQN === 0 ? [barTicks / PPQN, 4] : barTicks % (PPQN / 2) === 0 ? [barTicks / (PPQN / 2), 8] : [4, 4];
+  }
+  const ticks = (bars * beatsPerBar * PPQN * 4) / beatUnit;
+  const inRange = events.filter((e) => e.tick < ticks);
+  return { number, label: patternLabel(number), bars, ticks, beatsPerBar, beatUnit, events: inRange };
 }
 
 export function readChain(file: string, number: number): Chain {

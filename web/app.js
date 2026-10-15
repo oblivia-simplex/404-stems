@@ -101,7 +101,7 @@ function renderSequences() {
     ...(patterns.length
       ? patterns.map((p) =>
           el("li", {}, el("button", { ariaPressed: String(isSel("pattern", p.number)), onclick: () => select("pattern", p) },
-            el("span", { textContent: `Pattern ${p.label}` }), el("span", { className: "meta", textContent: `${p.bars} bars, ${p.bpm}` }))))
+            el("span", { textContent: `Pattern ${p.label}` }), el("span", { className: "meta", textContent: `${p.bars} bars${p.meter !== "4/4" ? ` in ${p.meter}` : ""}, ${p.bpm}` }))))
       : [el("li", { className: "empty", textContent: "No patterns in this project" })]),
   );
   $("chains").replaceChildren(
@@ -402,7 +402,8 @@ function renderTracker() {
   if (!tl) return;
   $("segments").replaceChildren(
     ...tl.segments.map((s) => {
-      const d = el("div", { textContent: s.label, title: `Pattern ${s.label}, ${s.bars} bars at ${s.bpm} bpm` });
+      const meter = `${s.beatsPerBar}/${s.beatUnit}`;
+      const d = el("div", { textContent: meter === "4/4" ? s.label : `${s.label} ${meter}`, title: `Pattern ${s.label}, ${s.bars} bars of ${meter} at ${s.bpm} bpm` });
       d.style.flex = `${s.end - s.start} 0 0`;
       return d;
     }),
@@ -428,13 +429,18 @@ function showPosition(t) {
   if (!tl) return;
   $("playhead").style.left = `${Math.min(100, (t / tl.seconds) * 100)}%`;
   const seg = segmentAt(t);
+  // One metronome light per beat of the current pattern's bar.
+  const want = seg?.beatsPerBar ?? 4;
+  if ($("beats").children.length !== want) $("beats").replaceChildren(...Array.from({ length: want }, () => el("span")));
   const beats = [...$("beats").children];
   [...$("segments").children].forEach((d, i) => d.classList.toggle("current", tl.segments[i] === seg));
   if (seg) {
-    const beat = Math.floor(((t - seg.start) * seg.bpm) / 60);
-    const inBar = beat % 4;
-    $("now-pattern").textContent = `Pattern ${seg.label}, ${seg.bpm} bpm`;
-    $("now-pos").textContent = `${Math.floor(beat / 4) + 1}.${inBar + 1}`;
+    // Tempo counts quarter notes; eighth-note meters tick twice per quarter.
+    const beat = Math.floor(((t - seg.start) * seg.bpm * (seg.beatUnit / 4)) / 60);
+    const inBar = beat % seg.beatsPerBar;
+    const meter = `${seg.beatsPerBar}/${seg.beatUnit}`;
+    $("now-pattern").textContent = `Pattern ${seg.label}, ${meter === "4/4" ? "" : `${meter}, `}${seg.bpm} bpm`;
+    $("now-pos").textContent = `${Math.floor(beat / seg.beatsPerBar) + 1}.${inBar + 1}`;
     const playing = !player.paused && isSelectionAudio();
     beats.forEach((b, i) => {
       b.classList.toggle("on", playing && i === inBar);

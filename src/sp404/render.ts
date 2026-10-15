@@ -33,7 +33,7 @@ export interface StemRender {
 
 // Where things happen in a render, for the playback display. Times are in output frames.
 export interface Timeline {
-  segments: { pattern: number; label: string; start: number; end: number; bpm: number; bars: number }[];
+  segments: { pattern: number; label: string; start: number; end: number; bpm: number; bars: number; beatsPerBar: number; beatUnit: number }[];
   hits: { pad: number; start: number; end: number; cut?: CutReason }[];
 }
 
@@ -206,7 +206,7 @@ export function renderStems(
       });
     }
     const length = Math.round(ptn.ticks * framesPerTick);
-    segments.push({ pattern: n, label: ptn.label, start: offset, end: offset + length, bpm: patternBpm(project, n, opts), bars: ptn.bars });
+    segments.push({ pattern: n, label: ptn.label, start: offset, end: offset + length, bpm: patternBpm(project, n, opts), bars: ptn.bars, beatsPerBar: ptn.beatsPerBar, beatUnit: ptn.beatUnit });
     offset += length;
   }
   const seqFrames = offset;

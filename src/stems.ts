@@ -74,6 +74,7 @@ function projectSummary(p: Project) {
       number: ptn.number,
       label: ptn.label,
       bars: ptn.bars,
+      meter: `${ptn.beatsPerBar}/${ptn.beatUnit}`,
       bpm: bankTempo(p.conf, Math.floor((ptn.number - 1) / 16)),
       events: ptn.events.length,
       pads: [...new Set(ptn.events.map((e) => e.pad))].sort((a, b) => a - b),
@@ -105,7 +106,7 @@ const server = http.createServer(async (req, res) => {
         return json(res, { root: DEFAULT_ROOT, outDir: DEFAULT_OUT });
       case "/api/projects": {
         const root = path.resolve(q.get("root") || DEFAULT_ROOT);
-        return json(res, { root, projects: findProjects(root).map((dir) => ({ dir, name: path.basename(dir) })) });
+        return json(res, { root, projects: findProjects(root).map((dir) => ({ dir, name: path.relative(root, dir) || path.basename(dir) })) });
       }
       case "/api/project": {
         const dir = q.get("dir")!;

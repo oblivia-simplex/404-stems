@@ -51,7 +51,11 @@ Pad index (0..159) = `(byte1 − 0x2F) + 80·(byte2 & 1)`, then bank = idx / 16,
 Validated: all 1,096 events in P4 map to existing samples. The firmware also converts SP-404SX
 patterns (12 pads/bank) to this layout (`0x67FE0E96`).
 
-Footer byte 0 = length in bars (4/4). Total ticks = bars × 1920.
+Footer (8 bytes): byte 0 = length in bars, byte 4 = time signature (0 = 4/4, 1 = 3/4, 4 = 5/4 seen),
+bytes 5–7 mostly `80 nn 01` (byte 6 often equals bars; meaning unknown).
+Pattern length = bars × bar length (4/4 = 1920 ticks, 3/4 = 1440, 5/4 = 2400). The record stream can run
+past that (83 of 824 patterns have trailing filler) but never has notes beyond it, so the stream total
+isn't the length.
 
 ## `PATTERNCHAIN_nn.CHN`
 
