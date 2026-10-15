@@ -152,7 +152,8 @@ export function monoChannel(pan: number): "left" | "right" | undefined {
 }
 
 // Envelope times: 0..127 maps linearly to 0..3 s of the sample's own time, and the fades are linear. Measured on the
-// user's unit (project 5, a vocal at speed 1.0859): attack 64 and release 64 both lasted 1.39 s = 1.51 s / 1.0859.
+// user's unit (project 5 vocal): at speed 1, attack 64 and release 64 are straight 1.512 s ramps (= 64/127 × 3 s);
+// at speed 1.0859 both lasted 1.39 s = 1.512 s / 1.0859.
 const envFrames = (v: number, timeRate = 1) => Math.round(((Math.max(0, v) / 127) * 3 * OUTPUT_RATE) / timeRate);
 
 // Mix one voice into `out` starting at `voice.start`; returns the frame after its last sample.

@@ -111,7 +111,7 @@ isn't the length.
 | 17 | 0x44 | 0/1, unknown | |
 | 18 | 0x48 | **pan**, a balance control: 0x40 = centre, ±50 = L50/R50, 13/115 = MONO (Left/Right): the sample's left (right) channel plays on both outputs and the other is dropped (user-described). Otherwise the near side stays at full level and the far side falls linearly (L25: right × 0.5); channels never mix. Measured on the user's unit | data + unit |
 | 20 | 0x50 | 0/1/2 (bus?) | |
-| 22–24 | 0x58–0x60 | attack / hold % / release. Attack and release are linear fades; 0–127 maps linearly to 0–3 s of the sample's own time, so they scale with playback speed (measured: a vocal at speed 1.0859, attack 64 and release 64 both lasted 1.39 s). Release ends where the played range ends | data + unit |
+| 22–24 | 0x58–0x60 | attack / hold % / release. Attack and release are linear fades; 0–127 maps linearly to 0–3 s of the sample's own time, so they scale with playback speed (measured on the unit: at speed 1, attack 64 and release 64 are straight ramps of 1.512 s = 64/127 × 3 s, sample-exact; at speed 1.0859 both lasted 1.39 s). Release ends where the played range ends | data + unit |
 
 - Sample names: 160 × 24-byte NUL-terminated strings at `0xA0 + 160·0xAC` (0x6C20).
   This is followed by 20,480 more bytes (160 × 128) that are not yet decoded.
