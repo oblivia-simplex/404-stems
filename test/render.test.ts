@@ -171,6 +171,20 @@ test("a retrigger at a different chromatic note lets the first one ring", () => 
   close(r.mix.left[240 * TICK + 300], 2 * 0.5 * PAN_L, 1e-3);
 });
 
+test("envelopes run in the sample's own time: at double speed, attack 127 takes 1.5 s", () => {
+  // Measured on the unit: a vocal at speed 1.0859 had attack 64 and release 64 last 1.39 s = (64/127 × 3 s) / 1.0859.
+  const p = project({ samples: [{ pad: 0, left: dc(8 * SEC), words: { [W.attack]: 127, [W.pitch]: 12 } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }], bars: 2 }] });
+  const r = renderStems(p, [1], {}, CUT);
+  close(r.mix.left[0.75 * SEC], 0.25, 1e-3);
+  close(r.mix.left[1.5 * SEC + 100], 0.5, 1e-3);
+});
+
+test("envelopes scale with SPEED on time-stretched pads too", () => {
+  const p = project({ samples: [{ pad: 0, left: dc(4 * SEC), words: { [W.mode]: 0, [W.attack]: 127, [W.speed]: 15000 } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }], bars: 2 }] });
+  const r = renderStems(p, [1], {}, CUT);
+  close(r.mix.left[1 * SEC] / r.mix.left[2.5 * SEC], 0.5, 0.03); // 3 s / 1.5 = 2 s ramp: half way at 1 s
+});
+
 test("mute groups: a new pad releases the other pad's sound", () => {
   const words = { [W.muteGroup]: 2 };
   const p = project({

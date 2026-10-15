@@ -60,6 +60,8 @@ interface Source {
   loopStart: number;
   ratio: number;
   reverse: boolean;
+  // How fast the sample's own time runs (1 = as recorded). Envelopes run in sample time, so they scale with it.
+  timeRate: number;
 }
 
 // Pad word 10: bit 0 = VINYL mode (pitch and speed change together, like a record; no tempo sync);
@@ -101,12 +103,12 @@ function voiceSource(project: Project, p: PadParams, voice: Voice): Source | nul
     // doesn't stretch the pad (user-confirmed on ORANGUTANGO B9). Older saves keep the vinyl rate in SPEED
     // instead (A6: pitch 0, speed 0.8408 = -3 semitones); with sync on, SPEED can't be set and holds a stale value.
     const vinylSpeed = !p.bpmSync && p.speed > 0 ? p.speed : 1;
-    return { left: s.left, right: s.right, start, end, loopStart, ratio: rateRatio * pitchRatio * vinylSpeed, reverse: p.reverse };
+    return { left: s.left, right: s.right, start, end, loopStart, ratio: rateRatio * pitchRatio * vinylSpeed, reverse: p.reverse, timeRate: pitchRatio * vinylSpeed };
   }
   // Playback speed: BPM-synced pads follow the current tempo; others use their speed setting.
   const speed = p.bpmSync && p.bpm > 0 ? voice.bpm / p.bpm : p.speed > 0 ? p.speed : 1;
   if (Math.abs(pitchRatio - 1) < 1e-6 && Math.abs(speed - 1) < 1e-4) {
-    return { left: s.left, right: s.right, start, end, loopStart, ratio: rateRatio, reverse: p.reverse };
+    return { left: s.left, right: s.right, start, end, loopStart, ratio: rateRatio, reverse: p.reverse, timeRate: 1 };
   }
   // Independent pitch and time: shift pitch keeping the length, then stretch the length by 1/speed.
   const key = `${project.dir}|${p.index}|${speed.toFixed(6)}|${voice.note}`;
@@ -122,7 +124,7 @@ function voiceSource(project: Project, p: PadParams, voice: Voice): Source | nul
     src = {
       left, right, start: 0, end: left.length,
       loopStart: p.reverse ? 0 : Math.min(left.length, Math.round((loopStart - start) / speed)),
-      ratio: 1, reverse: false,
+      ratio: 1, reverse: false, timeRate: speed,
     };
     if (stretchCache.size >= STRETCH_CACHE_MAX) stretchCache.delete(stretchCache.keys().next().value!);
     stretchCache.set(key, src);
@@ -149,8 +151,9 @@ export function monoChannel(pan: number): "left" | "right" | undefined {
   return pan <= 13 ? "left" : pan >= 115 ? "right" : undefined;
 }
 
-// Envelope times: 0..127 maps to 0..3 seconds (the manual gives 127 = 3 s; linear is an assumption).
-const envFrames = (v: number) => Math.round((Math.max(0, v) / 127) * 3 * OUTPUT_RATE);
+// Envelope times: 0..127 maps linearly to 0..3 s of the sample's own time, and the fades are linear. Measured on the
+// user's unit (project 5, a vocal at speed 1.0859): attack 64 and release 64 both lasted 1.39 s = 1.51 s / 1.0859.
+const envFrames = (v: number, timeRate = 1) => Math.round(((Math.max(0, v) / 127) * 3 * OUTPUT_RATE) / timeRate);
 
 // Mix one voice into `out` starting at `voice.start`; returns the frame after its last sample.
 function renderVoice(project: Project, p: PadParams, voice: Voice, out: StereoBuffer, limit: number): number {
@@ -161,8 +164,8 @@ function renderVoice(project: Project, p: PadParams, voice: Voice, out: StereoBu
   // HOLD plays only the first hold% of the start..end range (one-shots; loops keep the full range).
   const played = p.loop ? span : Math.max(2, Math.floor((span * Math.min(100, p.hold)) / 100));
   const natural = p.loop ? Infinity : Math.floor((played - 1) / ratio); // output frames until the end
-  const attack = envFrames(p.attack);
-  const release = envFrames(p.release);
+  const attack = envFrames(p.attack, s.timeRate);
+  const release = envFrames(p.release, s.timeRate);
   // Gated notes and mute-group cuts fade out over the release time; same-pitch retriggers cut quickly.
   const stopFade = voice.gated ? Math.max(STOP_FADE_FRAMES, release) : STOP_FADE_FRAMES;
   const [gl, gr] = panGains(p.pan);
