@@ -144,6 +144,13 @@ test("gate: release time still applies after the note is released", () => {
   assert.ok(silent(r.mix, off + 3 * SEC + 10, r.frames), "gone after the release time");
 });
 
+test("hold with release 0 cuts off abruptly (measured on the unit: hold 50 ended at half, full level to the last frame)", () => {
+  const p = project({ samples: [{ pad: 0, left: dc(1000), words: { [W.hold]: 50 } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }] }] });
+  const r = renderStems(p, [1], {}, CUT);
+  close(r.mix.left[498], 0.5);
+  close(r.mix.left[501], 0);
+});
+
 test("hold plays only part of the sample", () => {
   const p = project({ samples: [{ pad: 0, left: dc(1000), words: { [W.hold]: 50 } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }] }] });
   assert.equal(lastSound(renderStems(p, [1], {}, CUT).mix), 498);
