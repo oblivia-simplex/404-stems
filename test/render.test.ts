@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import * as fs from "fs";
 import { loadProject, Project } from "../src/sp404/project.js";
 import { renderStems, renderPad, bankGain, panGains, patternBpm, OUTPUT_RATE, StereoBuffer, RenderOptions } from "../src/sp404/render.js";
-import { tempDir, writeProject, ProjectSpec, dc, W, framesPerTick } from "./support/fixtures.js";
+import { tempDir, writeProject, ProjectSpec, dc, W, framesPerTick, SMP_HEADER } from "./support/fixtures.js";
 
 const project = (spec: ProjectSpec): Project => loadProject(writeProject(tempDir(), spec));
 const CUT: RenderOptions = { tail: "cut" };
@@ -393,12 +393,30 @@ test("PLAY Normal-B: a ping-pong loop runs forwards, back to the loop start, the
   close(out[999 + 999 + 100], 100 / 2000); // forwards again
 });
 
-test("PLAY Reverse-B: a ping-pong loop that starts backwards", () => {
+test("PLAY Reverse-B: a ping-pong loop that starts backwards (loop start at the end point, as the unit stores it)", () => {
+  // Verified on the unit: F11 at Reverse-B with TOP = end played backwards, forwards, backwards over the full range.
   const ramp = Float32Array.from({ length: 1000 }, (_, i) => i / 2000);
-  const p = project({ samples: [{ pad: 0, left: ramp, words: { [W.reverse]: 3, [W.loop]: 0x7fffffff } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }] }] });
+  const p = project({ samples: [{ pad: 0, left: ramp, words: { [W.reverse]: 3, [W.loop]: 0x7fffffff, [W.loopStart]: SMP_HEADER + 1000 * 2 } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }] }] });
   const out = renderStems(p, [1], {}, CUT).mix.left;
   close(out[100], 899 / 2000);
   close(out[999 + 100], 100 / 2000);
+});
+
+test("a reversed loop's start is mirrored: TOP a quarter in from the end loops the first three quarters backwards", () => {
+  const ramp = Float32Array.from({ length: 1000 }, (_, i) => i / 2000);
+  // Reverse loop with TOP at frame 750: playback runs 999 → 0, then loops 749 → 0 (mirrored: 250 from the end).
+  const p = project({ samples: [{ pad: 0, left: ramp, words: { [W.reverse]: 1, [W.loop]: 0x7fffffff, [W.loopStart]: SMP_HEADER + 750 * 2 } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }] }] });
+  const out = renderStems(p, [1], {}, CUT).mix.left;
+  close(out[100], 899 / 2000);
+  close(out[999 + 1 + 10], 739 / 2000, 2e-3); // second pass restarts at the mirrored TOP
+});
+
+test("a reversed loop with its start at the start point has no length: one backward pass, then silence (verified on the unit)", () => {
+  const ramp = Float32Array.from({ length: 1000 }, (_, i) => i / 2000);
+  const p = project({ samples: [{ pad: 0, left: ramp, words: { [W.reverse]: 3, [W.loop]: 0x7fffffff } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }] }] });
+  const r = renderStems(p, [1], {}, CUT);
+  close(r.mix.left[100], 899 / 2000);
+  assert.ok(silent(r.mix, 1000, 3000));
 });
 
 test("overlapping attack and release meet where the two lines cross", () => {

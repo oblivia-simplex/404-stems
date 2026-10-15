@@ -126,7 +126,7 @@ function voiceSource(project: Project, p: PadParams, voice: Voice): Source | nul
     const { left, right } = timeStretch(pitched, pitchRatio / speed, variMode(p) as VariMode);
     src = {
       left, right, start: 0, end: left.length,
-      loopStart: p.reverse ? 0 : Math.min(left.length, Math.round((loopStart - start) / speed)),
+      loopStart: reversedLoopStart(p.reverse, start, end, loopStart, speed, left.length),
       ratio: 1, reverse: false, timeRate: speed,
     };
     if (stretchCache.size >= STRETCH_CACHE_MAX) stretchCache.delete(stretchCache.keys().next().value!);
@@ -160,6 +160,12 @@ export function monoChannel(pan: number): "left" | "right" | undefined {
 const envFrames = (v: number, timeRate = 1) => Math.round(((Math.max(0, v) / 127) * 3 * OUTPUT_RATE) / timeRate);
 
 // Mix one voice into `out` starting at `voice.start`; returns the frame after its last sample.
+// Loop start in the pre-stretched buffer, which is already reversed for reversed pads (see renderVoice for why a
+// reversed pad's TOP is mirrored).
+function reversedLoopStart(reverse: boolean, start: number, end: number, loopStart: number, speed: number, length: number): number {
+  return Math.min(length, Math.round((reverse ? end - loopStart : loopStart - start) / speed));
+}
+
 // How long a voice plays if nothing stops it, in output frames (Infinity for loops).
 function naturalFrames(project: Project, p: PadParams, voice: Voice): number {
   const s = voiceSource(project, p, voice);
@@ -172,7 +178,11 @@ function naturalFrames(project: Project, p: PadParams, voice: Voice): number {
 function renderVoice(project: Project, p: PadParams, voice: Voice, out: StereoBuffer, limit: number): number {
   const s = voiceSource(project, p, voice);
   if (!s) return voice.start;
-  const { start: startF, end: endF, loopStart: loopF, ratio } = s;
+  const { start: startF, end: endF, ratio } = s;
+  // A reversed pad's loop start (TOP) is mirrored: in playback order it sits (end - TOP) after the start. Verified on
+  // the unit: reversed with TOP = end loops the whole range; with TOP = start the loop has no length and the pad stops
+  // after one backward pass.
+  const loopF = s.reverse ? startF + (endF - s.loopStart) : s.loopStart;
   const span = endF - startF;
   // HOLD plays only the first hold% of the start..end range (one-shots; loops keep the full range).
   const played = p.loop ? span : Math.max(2, Math.floor((span * Math.min(100, p.hold)) / 100));
