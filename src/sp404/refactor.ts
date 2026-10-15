@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { Project, sampleFile } from "./project.js";
 import { bankVolumeOffset, padLabel, PAD_COUNT } from "./padconf.js";
+import { bankGain } from "./render.js";
 
 // "Refactor" a chain (or single pattern) into a new project: keep only the pads its patterns play,
 // give each stem its own bank, and rewrite the patterns to point at the new pad positions.
@@ -137,7 +138,7 @@ export function executeRefactor(
       src.copy(out, EXTRA_AT + to * EXTRA_SIZE, EXTRA_AT + from * EXTRA_SIZE, EXTRA_AT + (from + 1) * EXTRA_SIZE);
       fs.copyFileSync(sampleFile(project.dir, from), sampleFile(tmp, to));
       // Pads change banks, so fold the old bank's BANK VOLUME into the pad's own volume (word 3).
-      const vol = Math.round((project.conf.pads[from].volume * (project.conf.bankVolume?.[Math.floor(from / 16)] ?? 127)) / 127);
+      const vol = Math.round(project.conf.pads[from].volume * bankGain(project.conf.bankVolume?.[Math.floor(from / 16)] ?? 127));
       out.writeInt32BE(vol, HEADER_SIZE + to * RECORD_SIZE + 12);
     }
     // ...and leave every bank at its default level.

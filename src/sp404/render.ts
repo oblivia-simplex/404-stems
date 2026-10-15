@@ -64,10 +64,16 @@ interface Source {
 
 // Pad word 10: bit 0 = VINYL mode (pitch and speed change together, like a record; no tempo sync);
 // bits 1-2 = VARI mode used when VINYL is off: 0 = Off, 1 = Backing (attacky sounds), 2 = Ensemble (sustained).
-// Pad volume × its bank's BANK VOLUME, both 0..127.
+// BANK VOLUME follows a square law: a resample of a full-volume pad from a bank at 64 measured
+// 0.2538 = (64/127)^2 (-11.9 dB) on the user's unit (project 5, F10 -> C15).
+export function bankGain(bankVolume: number): number {
+  return (bankVolume / 127) ** 2;
+}
+
+// Pad volume (linear, 0..127; not yet measured) × its bank's BANK VOLUME.
 export function padGain(project: Project, pad: number): number {
   const bank = project.conf.bankVolume?.[Math.floor(pad / 16)] ?? 127;
-  return (project.conf.pads[pad].volume / 127) * (bank / 127);
+  return (project.conf.pads[pad].volume / 127) * bankGain(bank);
 }
 
 export function isVinyl(p: PadParams): boolean {

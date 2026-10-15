@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as fs from "fs";
 import { loadProject, Project } from "../src/sp404/project.js";
-import { renderStems, renderPad, patternBpm, OUTPUT_RATE, StereoBuffer, RenderOptions } from "../src/sp404/render.js";
+import { renderStems, renderPad, bankGain, patternBpm, OUTPUT_RATE, StereoBuffer, RenderOptions } from "../src/sp404/render.js";
 import { tempDir, writeProject, ProjectSpec, dc, W, framesPerTick } from "./support/fixtures.js";
 
 const project = (spec: ProjectSpec): Project => loadProject(writeProject(tempDir(), spec));
@@ -330,7 +330,7 @@ test("renderPad: one hit of a pad, at its volume", () => {
   assert.equal(renderPad(p, 8).left.length, 0, "silent for a pad with no sample range");
 });
 
-test("BANK VOLUME scales every pad in its bank, in patterns and previews", () => {
+test("BANK VOLUME scales every pad in its bank by (volume/127)^2, in patterns and previews", () => {
   const bankVolume = [127, 90, 127, 127, 127, 127, 127, 127, 127, 127];
   const p = project({
     bankVolume,
@@ -338,6 +338,12 @@ test("BANK VOLUME scales every pad in its bank, in patterns and previews", () =>
     patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }] }, { number: 2, notes: [{ tick: 0, pad: 16 }] }],
   });
   close(renderStems(p, [1], {}, CUT).mix.left[10], 0.5 * PAN_L);
-  close(renderStems(p, [2], {}, CUT).mix.left[10], 0.5 * (90 / 127) * PAN_L);
-  close(renderPad(p, 16).left[10], 0.5 * (90 / 127) * PAN_L);
+  close(renderStems(p, [2], {}, CUT).mix.left[10], 0.5 * (90 / 127) ** 2 * PAN_L);
+  close(renderPad(p, 16).left[10], 0.5 * (90 / 127) ** 2 * PAN_L);
+});
+
+test("bankGain: matches the unit's resample of a full-volume pad from a bank at 64", () => {
+  close(bankGain(64), 0.25377, 5e-4); // measured: project 5, F10 resampled to C15
+  close(bankGain(127), 1);
+  close(bankGain(0), 0);
 });

@@ -147,7 +147,7 @@ test("execute: a pad's old BANK VOLUME is folded into its own volume, banks rese
   executeRefactor(before, [1], { drums: [0], bass: [36] }, dest, "OUT");
   const conf = readPadConf(path.join(dest, "PADCONF.BIN"));
   assert.deepEqual(conf.bankVolume, new Array(10).fill(127));
-  assert.equal(conf.pads[16].volume, Math.round((100 * 90) / 127));
+  assert.equal(conf.pads[16].volume, Math.round(100 * (90 / 127) ** 2));
   const a = renderStems(before, [1], {}, { tail: "cut" }).mix, b = renderStems(loadProject(dest), [1], {}, { tail: "cut" }).mix;
   assert.ok(Math.abs(a.left[10] - b.left[10]) < 0.003, `${a.left[10]} vs ${b.left[10]}`);
 });
