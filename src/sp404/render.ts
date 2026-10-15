@@ -134,10 +134,13 @@ function stereo(frames: number): StereoBuffer {
   return { left: new Float32Array(frames), right: new Float32Array(frames) };
 }
 
-function panGains(pan: number): [number, number] {
-  // Equal-power, unity at centre.
-  const t = (Math.min(127, Math.max(0, pan)) / 127) * (Math.PI / 2);
-  return [Math.cos(t) * Math.SQRT2, Math.sin(t) * Math.SQRT2];
+// PAN is a balance control (measured on the user's unit: project 5, F10 at L25 and R25 resampled to C15). The
+// near side stays at full level, the far side falls linearly to 0 at 50, and the channels never mix: L25 gave
+// left 0.996 × left, right 0.499 × right. Stored 0x40 ± 50 (L50..R50); 13 and 115 are MONO (Left) / MONO (Right),
+// treated as L50 / R50 here (not measured).
+export function panGains(pan: number): [number, number] {
+  const offset = Math.min(50, Math.max(-50, pan - 64));
+  return [offset > 0 ? 1 - offset / 50 : 1, offset < 0 ? 1 + offset / 50 : 1];
 }
 
 // Envelope times: 0..127 maps to 0..3 seconds (the manual gives 127 = 3 s; linear is an assumption).

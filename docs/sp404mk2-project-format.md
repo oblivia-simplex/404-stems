@@ -109,7 +109,7 @@ isn't the length.
 | 15 | 0x3C | **reverse** (SX import writes 2; 1 seen in data) | FW (0x75 ← SX reverse) |
 | 16 | 0x40 | speed ×10000 (playback timing, independent of pitch except in VINYL). On synced pads it holds tempo at save ÷ original BPM (H5: 75/108.28 = 6927) | FW (0x76) |
 | 17 | 0x44 | 0/1, unknown | |
-| 18 | 0x48 | pan 0–127, 0x40 = centre | data |
+| 18 | 0x48 | **pan**, a balance control: 0x40 = centre, ±50 = L50/R50, 13/115 = MONO (Left/Right). The near side stays at full level and the far side falls linearly (L25: right × 0.5); channels never mix. Measured on the user's unit | data + unit |
 | 20 | 0x50 | 0/1/2 (bus?) | |
 | 22–24 | 0x58–0x60 | attack / hold(100) / release? | data |
 

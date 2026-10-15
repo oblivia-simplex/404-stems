@@ -2,13 +2,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as fs from "fs";
 import { loadProject, Project } from "../src/sp404/project.js";
-import { renderStems, renderPad, bankGain, patternBpm, OUTPUT_RATE, StereoBuffer, RenderOptions } from "../src/sp404/render.js";
+import { renderStems, renderPad, bankGain, panGains, patternBpm, OUTPUT_RATE, StereoBuffer, RenderOptions } from "../src/sp404/render.js";
 import { tempDir, writeProject, ProjectSpec, dc, W, framesPerTick } from "./support/fixtures.js";
 
 const project = (spec: ProjectSpec): Project => loadProject(writeProject(tempDir(), spec));
 const CUT: RenderOptions = { tail: "cut" };
 const SEC = OUTPUT_RATE;
-const PAN_L = Math.cos((64 / 127) * (Math.PI / 2)) * Math.SQRT2; // centre pan, left gain
+const PAN_L = 1; // centre pan: both sides at full level
 
 const peak = (b: StereoBuffer, from: number, to: number) => {
   let m = 0;
@@ -93,16 +93,16 @@ test("velocity and pad volume scale the level", () => {
   close(r.mix.left[960 * TICK], 0.5 * (64 / 127) * PAN_L);
 });
 
-test("pan: hard left and hard right", () => {
+test("pan: hard left and hard right (L50 / R50)", () => {
   const p = project({
     samples: [{ pad: 0, left: dc(100), words: { [W.pan]: 0 } }, { pad: 1, left: dc(100), words: { [W.pan]: 127 } }],
     patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }, { tick: 960, pad: 1 }] }],
   });
   const r = renderStems(p, [1], {}, CUT);
-  close(r.mix.left[0], 0.5 * Math.SQRT2);
+  close(r.mix.left[0], 0.5);
   close(r.mix.right[0], 0);
   close(r.mix.left[960 * TICK], 0);
-  close(r.mix.right[960 * TICK], 0.5 * Math.SQRT2);
+  close(r.mix.right[960 * TICK], 0.5);
 });
 
 test("a one-shot plays its whole sample, then stops", () => {
@@ -361,4 +361,22 @@ test("velocity is linear: matches the unit's resample of a pattern", () => {
   const p = project({ samples: [{ pad: 0, left: dc(400) }], patterns: [{ number: 1, notes: measured.map(([v], i) => ({ tick: i * 240, pad: 0, velocity: v })) }] });
   const r = renderStems(p, [1], {}, CUT);
   measured.forEach(([, g], i) => close(r.mix.left[i * 240 * TICK + 10] / (0.5 * PAN_L), g, 1e-3));
+});
+
+test("pan is a balance: matches the unit's resample at L25 and R25", () => {
+  // Measured: project 5, F10 at L25 (stored 39) and a copy at R25 (89), resampled to C15.
+  const [l25L, l25R] = panGains(39), [r25L, r25R] = panGains(89);
+  close(l25L, 0.9964, 5e-3); // the near side is a hair under 1 on the unit, likely clipping (F10 peaks at full scale)
+  close(l25R, 0.4993, 1e-3);
+  close(r25L, 0.4996, 1e-3);
+  close(r25R, 0.9983, 5e-3);
+  assert.deepEqual(panGains(64), [1, 1]);
+  assert.deepEqual(panGains(14), [1, 0]);
+});
+
+test("pan never mixes the channels: a left-only sample panned right stays left-only, quieter", () => {
+  const p = project({ samples: [{ pad: 0, left: dc(100), right: dc(100, 0), words: { [W.pan]: 89 } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }] }] });
+  const r = renderStems(p, [1], {}, CUT);
+  close(r.mix.left[10], 0.25);
+  close(r.mix.right[10], 0);
 });
