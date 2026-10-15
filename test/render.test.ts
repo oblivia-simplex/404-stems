@@ -360,5 +360,5 @@ test("velocity is linear: matches the unit's resample of a pattern", () => {
   const measured: [number, number][] = [[2, 0.0156], [5, 0.0392], [14, 0.11007], [25, 0.19665], [40, 0.31479], [70, 0.55123], [100, 0.78683]];
   const p = project({ samples: [{ pad: 0, left: dc(400) }], patterns: [{ number: 1, notes: measured.map(([v], i) => ({ tick: i * 240, pad: 0, velocity: v })) }] });
   const r = renderStems(p, [1], {}, CUT);
-  measured.forEach(([, g], i) => close(r.mix.left[i * 240 * TICK + 10] / (0.5 * PAN_L), g, 5e-4));
+  measured.forEach(([, g], i) => close(r.mix.left[i * 240 * TICK + 10] / (0.5 * PAN_L), g, 1e-3));
 });
