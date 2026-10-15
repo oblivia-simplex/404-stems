@@ -80,8 +80,8 @@ isn't the length.
   the even bank in the low half, so it is stored second in the file. Confirmed on the user's unit: project 2 has nine banks
   at 90 (stored 0x25) and bank F at 127 (stored 0), giving `00250025 00250025 00000025 00250025 00250025` at 0x6C. Setting
   one pushes voice parameter 6 to all 16 pads of that bank. The level follows a square law, (bank volume/127)²: on the user's unit, a full-volume pad resampled from a bank at 64
-  came out at 0.2538 of full scale (−11.9 dB, correlation 1.0). The renderer plays a pad at pad volume/127 × (bank volume/127)² (the
-  pad volume curve isn't measured yet),
+  came out at 0.2538 of full scale (−11.9 dB, correlation 1.0). Pad volume (word 3), by the same test, is linear: a pad at 64 in a bank at 127
+  resampled at 0.5039 = 64/127. The renderer plays a pad at pad volume/127 × (bank volume/127)²,
   and the refactor tool folds a pad's old bank volume into its own volume, since pads change banks.
 - Whole-file layout from the serializer (`FUN_6814daf8`): 0x10 head + 0x90 header + 0x6B80 pad
   records + 0xF00 names + 0x5000 (160 × 128, undecoded) = 52,000 bytes.

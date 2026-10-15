@@ -70,7 +70,7 @@ export function bankGain(bankVolume: number): number {
   return (bankVolume / 127) ** 2;
 }
 
-// Pad volume (linear, 0..127; not yet measured) × its bank's BANK VOLUME.
+// Pad volume is linear: a full-scale pad at 64 resampled at 0.5039 = 64/127 (same test). Times its bank's BANK VOLUME.
 export function padGain(project: Project, pad: number): number {
   const bank = project.conf.bankVolume?.[Math.floor(pad / 16)] ?? 127;
   return (project.conf.pads[pad].volume / 127) * bankGain(bank);

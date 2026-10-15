@@ -347,3 +347,9 @@ test("bankGain: matches the unit's resample of a full-volume pad from a bank at 
   close(bankGain(127), 1);
   close(bankGain(0), 0);
 });
+
+test("pad volume is linear: matches the unit's resample of a pad at 64", () => {
+  // Measured: project 5, F10 at pad volume 64 in a bank at 127, resampled to C15 at 0.50393.
+  const p = project({ samples: [{ pad: 0, left: dc(1000), words: { [W.volume]: 64 } }] });
+  close(renderPad(p, 0).left[10] / (0.5 * PAN_L), 0.50393, 5e-4);
+});
