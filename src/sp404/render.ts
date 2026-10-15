@@ -318,6 +318,7 @@ export function renderStems(
 
 // A single pad as the device would play it on one hit (start/end, reverse, pitch, volume, pan; no looping).
 export function renderPad(project: Project, pad: number): StereoBuffer {
+  if (!project.hasSample[pad]) return stereo(0);
   const p = { ...project.conf.pads[pad], loop: false };
   // Synced pads preview at the tempo of their bank (or the project tempo, if that's in use).
   const voice: Voice = { pad, start: 0, stop: Infinity, gain: p.volume / 127, note: 0, bpm: bankTempo(project.conf, Math.floor(pad / 16)) };

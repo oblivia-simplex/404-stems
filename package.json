@@ -5,17 +5,48 @@
   "license": "GPL-3.0-or-later",
   "author": "Olivia Lucca Fraser",
   "type": "module",
-  "main": "dist/stems.js",
+  "main": "dist/electron/main.js",
   "bin": {
-    "sp404-stems": "dist/stems.js"
+    "sp404-stems": "dist/stems.js",
+    "sp404-device": "dist/device.js"
   },
   "scripts": {
     "build": "tsc",
-    "stems": "tsx src/stems.ts"
+    "stems": "tsx src/stems.ts",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "app": "tsc && electron .",
+    "app:build": "tsc && electron-builder --mac --dir",
+    "app:dmg": "tsc && electron-builder --mac dmg",
+    "typecheck": "tsc --noEmit -p . && tsc -p test",
+    "device": "tsx src/device.ts"
+  },
+  "dependencies": {
+    "serialport": "^13.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "electron": "^44.7.2",
+    "electron-builder": "^26.15.3",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0"
+  },
+  "build": {
+    "appId": "org.sp404.stems",
+    "productName": "SP-404 Stems",
+    "files": [
+      "dist/**/*",
+      "web/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "mac": {
+      "category": "public.app-category.music",
+      "target": [
+        "dir"
+      ],
+      "identity": null
+    }
   }
 }

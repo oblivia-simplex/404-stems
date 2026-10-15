@@ -120,3 +120,44 @@ The MK2 has two pattern continuation modes (from the user; not found in the proj
 - MK2: sounds still playing from pattern X stop the instant a different pattern Y starts; X repeating itself carries on.
 - SX: sounds from X ring on into Y until they finish.
 The renderer exposes this as an option (default MK2).
+
+## USB file access (internal storage)
+
+Over USB-C the unit is two devices behind its own hub: a class-compliant audio/MIDI device (`SP-404MKII`) and a
+CDC-ACM serial port (`Roland SP-404MKII`, VID `0582`, PID `02E7`; `/dev/cu.usbmodem*` on macOS). Roland's
+SP-404MKII app (v4.05, `CEmuFile::RFS*`, `CFileIO::Open`, `SmplCopyDir`) uses the serial port as a remote file
+system; its "export project" is a recursive copy through it. Implementation: `src/sp404/remote/`.
+
+**Framing.** Each message is a 12-byte header, then for long frames (header byte 0 bit 0 set) a little-endian u32
+length and the payload. Header bytes 0–3 are message id, source, destination and class: the app sends
+`13 60 E0 06` for file requests, the unit answers `13 E0 60 06`; bytes 4–11 are unused (the unit leaves pointer
+junk there). Short frames carry ≤7 bytes inline at 4–10 with the length at byte 11.
+
+**Session.** The app's keep-alive/connect message is the short frame `12 60 E0 05 FE 67 <mode> 00 00 00 00 03`.
+The unit replies with a long frame whose 19-byte payload ends in `0x33` (firmware status; the app ignores replies
+without that byte). Serial settings don't matter (the app uses 230400 8N1 raw).
+
+**Requests** (payload): `F0 41 7A 03 <cmd> <a> <b> <tail> F7`, where `a` and `b` are 32-bit values written as five
+7-bit groups, most significant first, and `tail` is a path or one extra byte (0 when unused).
+
+| cmd | request | a | b | tail | reply |
+|---|---|---|---|---|---|
+| `00` | open | mode (0 = read) | path length incl. NUL | path + NUL | result: fd, or -1 |
+| `03` | close | fd | 0 | 0 | result |
+| `04` | read | fd | byte count (≤ 0x55000; app sets 0x20 in the top group above 1 KB) | 0 | data packets; result 0 at EOF |
+| `06` | write | fd | … | data | result (not used by this tool) |
+| `07` | seek | fd | offset | whence | result: new position |
+| `0A` | remove | 0 | path length incl. NUL | path + NUL | result (not used by this tool) |
+| `0C` | opendir | 0 | path length | path, no NUL | result: handle (a device pointer, negative as int32), 0 = error |
+| `0D` | closedir | handle | 0 | 0 | result |
+| `0E` | readdir | handle | 0 | 0 | one data packet per entry; result -1 at the end |
+| `13` | fstat | fd | 0 | 0 | data: u32 mode, u32 size (little-endian) |
+
+**Replies**: `F0 41 7A 7A <value> <errno> F7` (result, two 7-bit-group values); `F0 41 7A 02 <5 bytes> <length> <data> F7`
+(data packet: bit 6 of the length's first byte marks the last packet); `F0 41 7A 7C F7` (busy: the app extends its
+2.5 s time-out to 10 s). Directory entries are 4 bytes, name length, type (4 = folder, 8 = file), then the name.
+
+**Paths** are `/SP404REMOTE//` followed by an absolute path (so three slashes in a row); a trailing slash fails.
+The root holds `FCTRY/`, `ROLAND/` and `DOOMBOOT.DAT`. Projects are `/ROLAND/SP-404MKII/PROJECT_01` … `PROJECT_16`,
+each with `PADCONF.BIN`, `SMPL/`, `PTN/` and `PICTURE/` in the same format as an SD-card export. Reads run at about
+4.7 MB/s.

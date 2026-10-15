@@ -62,6 +62,7 @@ async function scan(root) {
   const data = await api(`/api/projects?root=${encodeURIComponent(root)}`);
   state.root = data.root;
   $("root").value = data.root;
+  try { localStorage.setItem("sp404-stems:root", data.root); } catch {}
   const sel = $("project");
   sel.replaceChildren(...data.projects.map((p) => el("option", { value: p.dir, textContent: p.name })));
   if (!data.projects.length) {
@@ -396,6 +397,91 @@ $("export").onclick = async () => {
   }
 };
 
+// ---- copying projects from the unit over USB ----
+let deviceJob = null;
+const mb = (n) => `${(n / 1e6).toFixed(1)} MB`;
+
+function deviceStatus(text, error = false, ...extra) {
+  const st = $("device-status");
+  st.className = error ? "status error" : "status";
+  st.replaceChildren(text, ...extra);
+}
+
+async function loadDeviceProjects() {
+  const list = $("device-projects");
+  list.replaceChildren();
+  deviceStatus("Looking for the SP-404…");
+  try {
+    const data = await api("/api/device");
+    if (!data.connected) {
+      deviceStatus("No SP-404MKII found. Connect it with a USB cable, turn it on, then ", false,
+        el("button", { className: "quiet", textContent: "look again", onclick: loadDeviceProjects }));
+      return;
+    }
+    deviceStatus(`${data.projects.length} projects on the unit.`);
+    list.replaceChildren(...data.projects.map((p) => el("li", {},
+      el("span", { className: "slot", textContent: `P${p.slot}` }),
+      el("span", p.name ? { textContent: p.name } : { className: "unnamed", textContent: "Unnamed project" }),
+      el("button", { textContent: "Copy", onclick: () => copyFromDevice(p) }),
+    )));
+  } catch (err) {
+    deviceStatus(`Couldn't read the SP-404: ${err.message} `, true,
+      el("button", { className: "quiet", textContent: "Try again", onclick: loadDeviceProjects }));
+  }
+}
+
+async function copyFromDevice(p) {
+  const dest = $("device-dir").value;
+  try { localStorage.setItem("sp404-stems:device-dir", dest); } catch {}
+  for (const b of $("device-projects").querySelectorAll("button")) b.disabled = true;
+  $("device-progress").hidden = false;
+  $("device-bar").value = 0;
+  $("device-progress-text").textContent = `Copying P${p.slot}…`;
+  deviceStatus("");
+  try {
+    deviceJob = await api("/api/device/copy", { slot: p.slot, dest });
+    for (;;) {
+      await new Promise((r) => setTimeout(r, 300));
+      const job = await api(`/api/device/job?id=${deviceJob.id}`);
+      if (job.progress) {
+        const { bytes, totalBytes, filesDone, files } = job.progress;
+        $("device-bar").value = totalBytes ? bytes / totalBytes : 0;
+        $("device-progress-text").textContent = `Copying P${p.slot}: ${mb(bytes)} of ${mb(totalBytes)} (${filesDone} of ${files} files)`;
+      }
+      if (job.state === "running") continue;
+      if (job.state === "done") {
+        deviceStatus(`Copied P${p.slot} to ${job.dest}. `, false,
+          el("button", { className: "quiet", textContent: "Open it", onclick: () => openCopied(job.dest) }),
+          el("button", { className: "quiet", textContent: "Show in Finder", onclick: () => api(`/api/reveal?path=${encodeURIComponent(job.dest)}`) }));
+      } else if (job.state === "cancelled") {
+        deviceStatus("Copy cancelled. Nothing was saved.");
+      } else {
+        deviceStatus(`Copy failed: ${job.error} Nothing was saved.`, true);
+      }
+      break;
+    }
+  } catch (err) {
+    deviceStatus(`Copy failed: ${err.message}`, true);
+  } finally {
+    deviceJob = null;
+    $("device-progress").hidden = true;
+    for (const b of $("device-projects").querySelectorAll("button")) b.disabled = false;
+  }
+}
+
+async function openCopied(dest) {
+  $("device").close();
+  const root = dest.replace(/[\\/][^\\/]+$/, "");
+  await scan(root);
+  $("project").value = dest;
+  await openProject(dest);
+}
+
+$("device-open").onclick = () => { $("device").showModal(); loadDeviceProjects(); };
+$("device-close").onclick = () => $("device").close();
+$("device-cancel").onclick = () => deviceJob && api(`/api/device/cancel?id=${deviceJob.id}`);
+$("choose-device-dir").onclick = () => chooseFolder($("device-dir"));
+
 // ---- transport: metronome, position and tracker ----
 function renderTracker() {
   const tl = state.timeline;
@@ -529,10 +615,30 @@ player.onended = () => { playingKey = null; markPlaying(); };
 $("root-form").onsubmit = (e) => { e.preventDefault(); scan($("root").value); };
 $("project").onchange = (e) => openProject(e.target.value);
 
+// Native folder pickers, when running as the desktop app.
+async function chooseFolder(input) {
+  const { path } = await api(`/api/choose-folder?start=${encodeURIComponent(input.value)}`);
+  if (path) input.value = path;
+  return path;
+}
+$("choose-root").onclick = async () => { if (await chooseFolder($("root"))) scan($("root").value); };
+$("choose-out").onclick = async () => {
+  const path = await chooseFolder($("out-dir"));
+  if (path) try { localStorage.setItem("sp404-stems:out", path); } catch {}
+};
+
 (async () => {
   const cfg = await api("/api/config");
+  $("choose-root").hidden = $("choose-out").hidden = $("choose-device-dir").hidden = !cfg.canChooseFolder;
+  let deviceDir = cfg.deviceDir;
+  try { deviceDir = localStorage.getItem("sp404-stems:device-dir") || deviceDir; } catch {}
+  $("device-dir").value = deviceDir;
   let out = cfg.outDir;
-  try { out = localStorage.getItem("sp404-stems:out") || out; } catch {}
+  let root = cfg.root;
+  try {
+    out = localStorage.getItem("sp404-stems:out") || out;
+    if (cfg.canChooseFolder) root = localStorage.getItem("sp404-stems:root") || root;
+  } catch {}
   $("out-dir").value = out;
-  await scan(cfg.root);
+  await scan(root).catch(() => scan(cfg.root));
 })();

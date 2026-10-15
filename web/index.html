@@ -14,13 +14,31 @@
     <form id="root-form" class="root">
       <label for="root">Projects folder</label>
       <input id="root" spellcheck="false">
+      <button type="button" id="choose-root" class="quiet" hidden>Choose…</button>
       <button type="submit">Scan</button>
     </form>
     <label class="project-pick">
       <span>Project</span>
       <select id="project"></select>
     </label>
+    <button type="button" id="device-open">Copy from SP-404…</button>
   </header>
+
+  <dialog id="device" class="device" aria-labelledby="device-title">
+    <div class="row between">
+      <h2 id="device-title">Copy a project from the SP-404</h2>
+      <button type="button" id="device-close" class="quiet" aria-label="Close">Close</button>
+    </div>
+    <p class="hint">Connect the SP-404MKII with a USB cable. A copy has the project as it is on the unit right now, including changes you haven't exported to an SD card. Nothing on the unit is changed.</p>
+    <ul id="device-projects" class="device-list"></ul>
+    <div id="device-progress" class="device-progress" hidden>
+      <progress id="device-bar" max="1" value="0"></progress>
+      <div class="row between"><span id="device-progress-text"></span><button type="button" id="device-cancel" class="quiet">Cancel</button></div>
+    </div>
+    <p id="device-status" class="status" role="status"></p>
+    <div class="out device-dest"><label for="device-dir">Save copies to</label> <input id="device-dir" spellcheck="false"> <button type="button" id="choose-device-dir" class="quiet" hidden>Choose…</button></div>
+    <p class="hint">Copying a project again replaces the earlier copy in this folder.</p>
+  </dialog>
 
   <main class="layout">
     <aside class="panel sequences">
@@ -75,7 +93,7 @@
         </div>
         <button id="preview-mix" class="play-btn">Play full mix</button>
         <ul id="stem-previews" class="stem-previews"></ul>
-        <label class="out">Save to <input id="out-dir" spellcheck="false"></label>
+        <div class="out"><label for="out-dir">Save to</label> <input id="out-dir" spellcheck="false"> <button type="button" id="choose-out" class="quiet" hidden>Choose…</button></div>
         <label class="check"><input id="include-mix" type="checkbox" checked> Also save the full mix</label>
         <button id="export" class="primary">Export stems</button>
         <p id="status" class="status" role="status"></p>
