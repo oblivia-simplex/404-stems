@@ -47,6 +47,8 @@ There is no encryption. Swap bytes from offset 0x200 to get WAV data.
 | 5 | always 0x40 so far |
 | 6–7 | note length in ticks, **little-endian** |
 
+PAD LINK (pad word 19) and Fixed Velocity also act only when hits are recorded (user): a linked pad's hits are stored as notes of their own, and linking a pad later doesn't make its existing notes trigger others. Mute groups, by contrast, apply during playback.
+
 Swing is applied when hits are recorded: the stored tick positions already include it, and changing swing later doesn't move them (user), so playback needs no swing setting.
 
 Pad index (0..159) = `(byte1 − 0x2F) + 80·(byte2 & 1)`, then bank = idx / 16, pad = idx % 16.

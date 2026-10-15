@@ -135,7 +135,7 @@ breakpoints at `[0x18..0x28]`.
 - What MONO(L)/MONO(R) does to the audio: find the consumer of voice `[0x3B]` beyond `voice_set_param`, or measure.
 - Whether the envelope follows sample position (finding 4): measure.
 - VINYL + TEMPO SYNC behaviour on a real VINYL pad (finding 1): measure.
-- PAD LINK (word 19, 36 pads use it): do pattern hits on a linked pad also trigger the others? Look at the pad-hit
+- PAD LINK (word 19, 36 pads use it): answered by the user. It acts only when hits are recorded (linked pads' hits are stored as their own notes), so there's nothing to render. Original question: do pattern hits on a linked pad also trigger the others? Look at the pad-hit
   path near `bank_sync_gate_toggle` and the "PAD LINK GROUPS" page (0x680BBE48).
 - Fixed Velocity (word 10 bit 0): whether playback overrides the recorded velocity. Look for `prm_get(0xF5)` callers.
 - Word 25 (ID 0x7C, 7 pads) and per-pad IDs 0x89/0x8D: unknown.
