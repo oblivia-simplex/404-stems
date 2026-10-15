@@ -151,6 +151,15 @@ test("hold with release 0 cuts off abruptly (measured on the unit: hold 50 ended
   close(r.mix.left[501], 0);
 });
 
+test("the release ends at the hold point (measured on the unit: hold 50 + release 50 faded over 1.181 s to silence at half)", () => {
+  const p = project({ samples: [{ pad: 0, left: dc(4 * SEC), words: { [W.hold]: 50, [W.release]: 50 } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }], bars: 2 }] });
+  const r = renderStems(p, [1], {}, CUT);
+  const T = (50 / 127) * 3; // 1.181 s, ending at the hold point (2 s)
+  close(r.mix.left[0.5 * SEC], 0.5, 1e-3); // before the fade
+  close(r.mix.left[1.5 * SEC], 0.5 * (0.5 / T), 2e-3);
+  assert.ok(silent(r.mix, 2 * SEC, 3 * SEC));
+});
+
 test("hold plays only part of the sample", () => {
   const p = project({ samples: [{ pad: 0, left: dc(1000), words: { [W.hold]: 50 } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }] }] });
   assert.equal(lastSound(renderStems(p, [1], {}, CUT).mix), 498);
