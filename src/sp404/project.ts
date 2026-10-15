@@ -55,7 +55,7 @@ export function findProjects(root: string, maxDepth = 4): string[] {
     if (depth >= maxDepth) return;
     for (const e of entries) {
       if (!e.isDirectory() || e.name.startsWith(".")) continue;
-      if (["SMPL", "PTN", "PICTURE", "IMPORT"].includes(e.name.toUpperCase())) continue;
+      if (["SMPL", "PTN", "PICTURE"].includes(e.name.toUpperCase())) continue;
       walk(path.join(dir, e.name), depth + 1);
     }
   };
