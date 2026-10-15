@@ -108,7 +108,7 @@ isn't the length.
 | 12 | 0x30 | set when loop on | FW (0x72) |
 | 13 | 0x34 | signed −12..+12, pitch semitones? | data |
 | 14 | 0x38 | signed, fine tune cents? | data |
-| 15 | 0x3C | **PLAY**: 0 Normal-A, 1 Reverse-A, 2 Normal-B, 3 Reverse-B; bit 0 = reverse ("-B" is ping-pong in Roland's app 4.05, not rendered) | FW |
+| 15 | 0x3C | **PLAY**: 0 Normal-A, 1 Reverse-A, 2 Normal-B, 3 Reverse-B; bit 0 = reverse, bit 1 = **ping-pong loop** ([SHIFT] + [LOOP], the button blinks; Roland's app 4.05: Fwd/Rev Ping-Pong; only looped pads use it in the data). Not to be confused with the Utility setting "Reverse Type" (MK2/SX), a system setting that only changes pressing [REVERSE] during playback | FW |
 | 16 | 0x40 | speed ×10000 (playback timing, independent of pitch except in VINYL). On synced pads it holds tempo at save ÷ original BPM (H5: 75/108.28 = 6927) | FW (0x76) |
 | 17 | 0x44 | **VINYL** No/Yes: plain resampling at 2^(pitch/12) × SPEED; some saves keep the vinyl rate in SPEED (ORANGUTANGO A6: 0.8408 = −3 semitones). With BPM sync the tempo ratio replaces SPEED, so pitch follows tempo (measured on the unit: 82.88 BPM pad in a bank at 86 played at 1.0376) | FW (parameter-name table) + data |
 | 18 | 0x48 | **pan**, a balance control: 0x40 = centre, ±50 = L50/R50, 13/115 = MONO (Left/Right): the sample's left (right) channel plays on both outputs and the other is dropped (user-described). Otherwise the near side stays at full level and the far side falls linearly (L25: right × 0.5); channels never mix. Measured on the user's unit | data + unit |

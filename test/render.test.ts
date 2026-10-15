@@ -384,6 +384,23 @@ test("PLAY: only odd values (Reverse-A, Reverse-B) play backwards", () => {
   }
 });
 
+test("PLAY Normal-B: a ping-pong loop runs forwards, back to the loop start, then forwards again", () => {
+  const ramp = Float32Array.from({ length: 1000 }, (_, i) => i / 2000);
+  const p = project({ samples: [{ pad: 0, left: ramp, words: { [W.reverse]: 2, [W.loop]: 0x7fffffff } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }] }] });
+  const out = renderStems(p, [1], {}, CUT).mix.left;
+  close(out[500], 500 / 2000);
+  close(out[999 + 100], 899 / 2000); // on the way back
+  close(out[999 + 999 + 100], 100 / 2000); // forwards again
+});
+
+test("PLAY Reverse-B: a ping-pong loop that starts backwards", () => {
+  const ramp = Float32Array.from({ length: 1000 }, (_, i) => i / 2000);
+  const p = project({ samples: [{ pad: 0, left: ramp, words: { [W.reverse]: 3, [W.loop]: 0x7fffffff } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }] }] });
+  const out = renderStems(p, [1], {}, CUT).mix.left;
+  close(out[100], 899 / 2000);
+  close(out[999 + 100], 100 / 2000);
+});
+
 test("overlapping attack and release meet where the two lines cross", () => {
   // 2 s sample, attack 127 (3 s) and release 127 (3 s): they cross at 1 s, at level 1/3.
   const p = project({ samples: [{ pad: 0, left: dc(2 * SEC), words: { [W.attack]: 127, [W.release]: 127 } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }], bars: 2 }] });

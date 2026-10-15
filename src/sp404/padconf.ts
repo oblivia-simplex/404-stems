@@ -23,7 +23,8 @@ export interface PadParams {
   bpm: number;
   pitch: number; // semitones
   fine: number; // cents
-  reverse: boolean; // PLAY (word 15) bit 0: 0 Normal-A, 1 Reverse-A, 2 Normal-B, 3 Reverse-B ("-B" not decoded)
+  reverse: boolean; // PLAY (word 15) bit 0: 0 Normal-A, 1 Reverse-A, 2 Normal-B, 3 Reverse-B
+  pingPong: boolean; // PLAY bit 1 ("-B"): the loop plays forwards then backwards (SHIFT + LOOP; Roland's app: Ping-Pong)
   vinyl: boolean; // word 17 (firmware labels it VINYL)
   fixedVelocity: boolean; // word 10 bit 0; affects live hits only, not velocities already in patterns (measured)
   oneShot: boolean; // word 10 bit 5: plays to the end, ignores hits while sounding
@@ -95,6 +96,7 @@ export function readPadConf(file: string): PadConf {
       pitch: w[13],
       fine: w[14],
       reverse: (w[15] & 1) !== 0,
+      pingPong: (w[15] & 2) !== 0,
       vinyl: w[17] === 1,
       fixedVelocity: (w[10] & 1) !== 0,
       oneShot: (w[10] & 0x20) !== 0,

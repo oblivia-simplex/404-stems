@@ -194,7 +194,14 @@ function renderVoice(project: Project, p: PadParams, voice: Voice, out: StereoBu
     if (pos >= played - 1) {
       if (!p.loop || endF - loopF < 2) break;
       const loopLen = endF - loopF;
-      pos = loopF - startF + ((pos - (loopF - startF)) % loopLen);
+      const into = pos - (loopF - startF);
+      if (p.pingPong) {
+        // Bounce between the end point and the loop start: back down after the first pass, then up again.
+        const run = loopLen - 1, m = (into - run) % (2 * run);
+        pos = loopF - startF + (m < run ? run - m : m - run);
+      } else {
+        pos = loopF - startF + (into % loopLen);
+      }
     }
     if (s.reverse) pos = span - 1 - pos;
     const i = startF + Math.floor(pos);

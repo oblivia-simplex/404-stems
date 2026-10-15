@@ -275,6 +275,6 @@ test("PADCONF: VINYL is word 17; word 10 holds Fixed Velocity (bit 0) and One Sh
     ],
   });
   const [a, b] = readPadConf(path.join(dir, "PADCONF.BIN")).pads;
-  assert.deepEqual([a.vinyl, a.fixedVelocity, a.oneShot, a.reverse], [true, false, false, false]);
-  assert.deepEqual([b.vinyl, b.fixedVelocity, b.oneShot, b.reverse], [false, true, true, true]);
+  assert.deepEqual([a.vinyl, a.fixedVelocity, a.oneShot, a.reverse, a.pingPong], [true, false, false, false, true]);
+  assert.deepEqual([b.vinyl, b.fixedVelocity, b.oneShot, b.reverse, b.pingPong], [false, true, true, true, true]);
 });
