@@ -1,24 +1,57 @@
 # SP-404 Stems
 
-An app for exporting stems from patterns and pattern chains. Each stem is a group of pads you choose (by default, one stem per bank). It runs as a desktop app or in your browser:
+Export stems from Roland SP-404MKII patterns and pattern chains, and copy projects off the unit over USB.
+
+A stem is a group of pads you choose (by default, one stem per bank). The app reads projects from an SD card, a folder of exported projects, or straight from the SP-404MKII over USB, and renders each stem as its own WAV.
+
+## Running it
 
 ```bash
+npm install
 npm run app                            # desktop app (Electron); opens the SD card if it's mounted
+npm run stems -- "/path/to/projects"   # or the same UI in your browser, at http://127.0.0.1:4040/
 npm run app:build                      # build "SP-404 Stems.app" into release/
-npm run stems -- "/path/to/projects"   # or: browser UI at http://127.0.0.1:4040/ for an SD card or folder of exports
 ```
 
-- Click or drag across pads to put them in the selected stem; right-click a pad (or its ▶) to hear it.
-- Pick a pattern or chain to preview the full mix or any single stem.
-- **Export stems** writes one 32-bit float WAV per stem (plus the full mix if ticked) to `~/Music/SP404 Stems/<project>/<pattern>/`. The stems always sum exactly to the mix.
+Requires Node.js 18+. Developed and tested on macOS.
 
-- **Copy from SP-404…** copies a project straight out of the SP-404MKII's internal storage over USB, so you don't need to export it to an SD card first. Copies go to `~/Music/SP-404MKII Projects/P<slot>_<NAME>/`, laid out exactly like an SD-card export, and open in the app like any other project. A copy is the project as it is on the unit right now, so it can differ from an older SD export of the same project. Nothing on the unit is changed. From the command line: `npm run device -- list` and `npm run device -- pull <slot|all> [folder]`.
+## What it does
 
+- **Group pads into stems.** Click or drag across pads to put them in the selected stem; right-click a pad (or its ▶) to hear it.
+- **Preview.** Pick a pattern or chain to hear the full mix or any single stem. A transport bar shows the beat, bar and position in the pattern or chain, and pads light up as they play.
+- **Export stems.** Writes one 32-bit float WAV per stem (plus the full mix if ticked) to `~/Music/SP404 Stems/<project>/<pattern>/`. The stems always sum exactly to the mix.
+- **Copy from SP-404…** copies a project straight out of the unit's internal storage over USB, so you don't need to export it to an SD card first. Copies go to `~/Music/SP-404MKII Projects/P<slot>_<NAME>/`, laid out exactly like an SD-card export. A copy is the project as it is on the unit right now, so it can differ from an older SD export of the same project. Nothing on the unit is changed. Close Roland's SP-404MKII app first: only one program can use the connection at a time.
 - **Make a new project from this chain** (or pattern) copies only the pads it plays into a new project folder next to the original, one bank per stem, and rewrites the patterns to match. The original project isn't touched. A stem with more than 16 pads spills into the next bank, with a warning suggesting you split it.
 
-Playback follows the pad settings: start/end, volume, velocity, pan, gate, loop (toggling when gate is off), reverse, pitch and speed (VINYL or independent), the envelope, mute groups (with release), same-pitch retriggers, the project/bank tempo, and MK2 or SX pattern continuation. A transport bar shows the beat, bar and position in the pattern or chain, and pads light up as they play. BPM-synced pads are time-stretched to the project tempo (with a WSOLA stretcher, not the device's own algorithm), and effects aren't applied: stems are dry. Format notes: [docs/sp404mk2-project-format.md](docs/sp404mk2-project-format.md).
+From the command line:
 
-Run the tests with `npm test` (unit tests for the file formats, renderer, time-stretch, refactor tool, USB protocol and server, using synthetic projects and a simulated SP-404), and `npm run typecheck`.
+```bash
+npm run device -- list                       # projects on a connected SP-404MKII
+npm run device -- pull <slot|all> [folder]   # copy them to your computer
+```
+
+## How faithful the rendering is
+
+Playback follows the pad settings: start/end, volume, velocity, pan, gate, loop (toggling when gate is off), reverse, pitch and speed (VINYL or independent), the envelope, mute groups (with release), same-pitch retriggers, time signatures, the project/bank tempo, and MK2 or SX pattern continuation.
+
+Not reproduced exactly:
+- BPM-synced and non-VINYL pads are time-stretched with a WSOLA stretcher, not the unit's own algorithms, which run on a DSP whose code isn't readable.
+- Effects aren't applied: stems are dry.
+
+The file formats and the USB protocol are documented in [docs/sp404mk2-project-format.md](docs/sp404mk2-project-format.md).
+
+## Development
+
+```bash
+npm test          # unit tests: file formats, renderer, time-stretch, refactor tool, USB protocol, server
+npm run typecheck
+```
+
+The tests build synthetic projects (`test/support/fixtures.ts`) and talk to a simulated SP-404MKII (`test/support/fakeSp404.ts`), so they don't need the hardware.
+
+## Disclaimer
+
+Not affiliated with or endorsed by Roland. The project format and USB protocol were worked out by reverse engineering and may be incomplete. The app only reads from the SD card and the unit; the one exception is "Make a new project", which writes a new folder next to the original and never overwrites an existing one. Keep backups of your projects anyway.
 
 ## License
 

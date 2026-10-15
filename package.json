@@ -13,12 +13,12 @@
   "scripts": {
     "build": "tsc",
     "stems": "tsx src/stems.ts",
-    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "device": "tsx src/device.ts",
     "app": "tsc && electron .",
     "app:build": "tsc && electron-builder --mac --dir",
     "app:dmg": "tsc && electron-builder --mac dmg",
-    "typecheck": "tsc --noEmit -p . && tsc -p test",
-    "device": "tsx src/device.ts"
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit -p . && tsc -p test"
   },
   "dependencies": {
     "serialport": "^13.0.0"
