@@ -103,7 +103,8 @@ function voiceSource(project: Project, p: PadParams, voice: Voice): Source | nul
   if (isVinyl(p)) {
     // VINYL: plain resampling, like a record, at 2^(pitch/12) × speed. Some saves keep the vinyl rate in SPEED
     // (ORANGUTANGO A6: pitch 0, speed 0.8408 = -3 semitones). With BPM sync on, SPEED can't be set; the tempo ratio
-    // takes its place, so pitch follows tempo like a turntable (assumed, not measured on the unit yet).
+    // takes its place, so pitch follows tempo like a turntable (measured on the unit: a VINYL pad at 82.88 BPM hit in
+    // a bank at 86 resampled at 1.0376 = 86/82.88, plain resampling).
     const vinylSpeed = p.bpmSync && p.bpm > 0 ? voice.bpm / p.bpm : p.speed > 0 ? p.speed : 1;
     return { left: s.left, right: s.right, start, end, loopStart, ratio: rateRatio * pitchRatio * vinylSpeed, reverse: p.reverse, timeRate: pitchRatio * vinylSpeed };
   }

@@ -362,7 +362,7 @@ test("ORANGUTANGO B9 is not VINYL (word 17 = 0): synced, it keeps its pitch and 
   assert.ok(Math.abs(end - expect) < 0.02 * SEC, `ended at ${end}, expected ~${expect}`);
 });
 
-test("VINYL with BPM sync follows the tempo with pitch (assumed): rate = pitch × tempo/BPM", () => {
+test("VINYL with BPM sync follows the tempo with pitch (measured on the unit: 86/82.88 = 1.0376): rate = pitch × tempo/BPM", () => {
   const p = project({ bpm: 120, samples: [{ pad: 0, left: dc(SEC), words: { [W.bpmSync]: 1, [W.bpm]: 6000, [W.pitch]: -12 } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }] }] });
   const end = lastSound(renderStems(p, [1], {}, CUT).mix);
   assert.ok(Math.abs(end - (SEC - 1)) <= 3, `ended at ${end}`); // ×2 for the tempo, ×0.5 for the pitch

@@ -25,7 +25,7 @@ export interface PadParams {
   fine: number; // cents
   reverse: boolean; // PLAY (word 15) bit 0: 0 Normal-A, 1 Reverse-A, 2 Normal-B, 3 Reverse-B ("-B" not decoded)
   vinyl: boolean; // word 17 (firmware labels it VINYL)
-  fixedVelocity: boolean; // word 10 bit 0
+  fixedVelocity: boolean; // word 10 bit 0; affects live hits only, not velocities already in patterns (measured)
   oneShot: boolean; // word 10 bit 5: plays to the end, ignores hits while sounding
   speed: number; // 1.0 = 100%
   pan: number; // 0..127, 64 = centre
