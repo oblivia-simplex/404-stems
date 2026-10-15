@@ -297,10 +297,24 @@ test("BPM sync without VINYL changes length but not pitch", () => {
   assert.ok(Math.abs(crossings - 100) <= 3, `${crossings} cycles in 0.1 s`);
 });
 
-test("BPM sync in VINYL mode changes pitch with speed", () => {
-  const p = project({ bpm: 120, samples: [{ pad: 0, left: dc(SEC), words: { [W.bpmSync]: 1, [W.bpm]: 6000 } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }] }] });
+test("VINYL ignores BPM sync and its stale SPEED: only the pitch sets the rate", () => {
+  // ORANGUTANGO B9: VINYL, synced at 93.03 BPM in a 77 BPM project, pitch -4, speed 0.92. Plays at 2^(-4/12).
+  const p = project({
+    bpm: 77,
+    samples: [{ pad: 0, left: dc(SEC), words: { [W.bpmSync]: 1, [W.bpm]: 9303, [W.pitch]: -4, [W.speed]: 9200 } }],
+    patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }] }],
+  });
   const end = lastSound(renderStems(p, [1], {}, CUT).mix);
-  assert.ok(Math.abs(end - SEC / 2) <= 2, `ended at ${end}`);
+  const expect = (SEC - 1) * Math.pow(2, 4 / 12);
+  assert.ok(Math.abs(end - expect) <= 3, `ended at ${end}, expected ~${expect}`);
+});
+
+test("VINYL without sync: SPEED and pitch multiply", () => {
+  // ORANGUTANGO A6 keeps its vinyl rate in SPEED: pitch 0, speed 0.8408 (= -3 semitones).
+  const p = project({ samples: [{ pad: 0, left: dc(SEC), words: { [W.speed]: 8408, [W.pitch]: 2 } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }] }] });
+  const end = lastSound(renderStems(p, [1], {}, CUT).mix);
+  const expect = (SEC - 1) / (0.8408 * Math.pow(2, 2 / 12));
+  assert.ok(Math.abs(end - expect) <= 3, `ended at ${end}, expected ~${expect}`);
 });
 
 test("hits report where each sound plays and why it stopped", () => {

@@ -62,7 +62,7 @@ interface Source {
   reverse: boolean;
 }
 
-// Pad word 10: bit 0 = VINYL mode (pitch and speed change together, like a record);
+// Pad word 10: bit 0 = VINYL mode (pitch and speed change together, like a record; no tempo sync);
 // bits 1-2 = VARI mode used when VINYL is off: 0 = Off, 1 = Backing (attacky sounds), 2 = Ensemble (sustained).
 export function isVinyl(p: PadParams): boolean {
   return (p.raw[10] & 1) !== 0;
@@ -83,13 +83,18 @@ function voiceSource(project: Project, p: PadParams, voice: Voice): Source | nul
   const loopStart = Math.min(Math.max(byteOffsetToFrame(p.loopStart, s.channels), start), end);
   if (end - start <= 1) return null;
   const pitchRatio = Math.pow(2, (p.pitch + voice.note + p.fine / 100) / 12);
+  const rateRatio = s.rate / OUTPUT_RATE;
+  if (isVinyl(p)) {
+    // VINYL: plain resampling, like a record. The pitch setting is the speed (-12..+7 = 50..150%) and BPM sync
+    // doesn't stretch the pad (user-confirmed on ORANGUTANGO B9). Older saves keep the vinyl rate in SPEED
+    // instead (A6: pitch 0, speed 0.8408 = -3 semitones); with sync on, SPEED can't be set and holds a stale value.
+    const vinylSpeed = !p.bpmSync && p.speed > 0 ? p.speed : 1;
+    return { left: s.left, right: s.right, start, end, loopStart, ratio: rateRatio * pitchRatio * vinylSpeed, reverse: p.reverse };
+  }
   // Playback speed: BPM-synced pads follow the current tempo; others use their speed setting.
   const speed = p.bpmSync && p.bpm > 0 ? voice.bpm / p.bpm : p.speed > 0 ? p.speed : 1;
-  const rateRatio = s.rate / OUTPUT_RATE;
-
-  if (isVinyl(p) || (Math.abs(pitchRatio - 1) < 1e-6 && Math.abs(speed - 1) < 1e-4)) {
-    // Vinyl (or nothing to do): plain resampling, so pitch and speed move together.
-    return { left: s.left, right: s.right, start, end, loopStart, ratio: rateRatio * pitchRatio * speed, reverse: p.reverse };
+  if (Math.abs(pitchRatio - 1) < 1e-6 && Math.abs(speed - 1) < 1e-4) {
+    return { left: s.left, right: s.right, start, end, loopStart, ratio: rateRatio, reverse: p.reverse };
   }
   // Independent pitch and time: shift pitch keeping the length, then stretch the length by 1/speed.
   const key = `${project.dir}|${p.index}|${speed.toFixed(6)}|${voice.note}`;

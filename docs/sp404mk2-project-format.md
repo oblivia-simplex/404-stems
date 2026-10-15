@@ -74,6 +74,11 @@ isn't the length.
   - bit 16 = 0: each pattern plays at the tempo of the bank it's stored in (P4 pattern C2 → bank C = 85).
 - Header words 0x40..0x64, one per bank A..J (IDs 0x21–0x2A): bank tempo = value >> 1 (BPM×100).
   Bit 0 (IDs 0x17–0x20) locks editing of that bank's pad settings (`FUN_67fe0538`).
+- Header 0x68 (ID 0x2B–0x34): ten bank flags, bit *b* for bank *b* (meaning not confirmed).
+- **Bank volume**: header 0x6C–0x7F, ten 16-bit values for banks A–J (IDs 0x35–0x3E; Roland's app: `Project.BankA.Volume`…,
+  range 0–127). Each u32 word holds two banks, with the even bank in the low half, so it is stored second in the file. Setting
+  one pushes voice parameter 6 (stored ×100) to all 16 pads of that bank. Every project seen so far stores 0, so 0 must mean
+  "not set". The renderer doesn't apply bank volume yet, because the gain scale isn't known.
 - Whole-file layout from the serializer (`FUN_6814daf8`): 0x10 head + 0x90 header + 0x6B80 pad
   records + 0xF00 names + 0x5000 (160 × 128, undecoded) = 52,000 bytes.
 - 160 pad records × 0xAC bytes at 0xA0 (43 BE u32 words). The firmware serializer (`FUN_6814daf8`)
@@ -92,7 +97,7 @@ isn't the length.
 | 7  | 0x1C | mute group (0 = off)? Hi-hats F5–F8 share 6 | data |
 | 8  | 0x20 | **BPM sync**: the region is time-stretched (pitch kept) by tempo ÷ word 9 | FW (0x6E ← SX tempo mode); BELLELNI H5 |
 | 9  | 0x24 | original BPM ×100 | FW (0x6F) |
-| 10 | 0x28 | bit 0 = **VINYL mode** (pitch and speed together; pads with it never exceed +7 semitones, matching the manual's −12…+7). Bits 1–2 = **VARI mode** when VINYL is off: 0 Off, 1 Backing, 2 Ensemble. Bits 3–5 unknown | data + v3 manual p.52 |
+| 10 | 0x28 | bit 0 = **VINYL mode**: plain resampling at 2^(pitch/12) × SPEED; BPM sync doesn't stretch a VINYL pad, and with sync on SPEED is stale and ignored (user-confirmed, ORANGUTANGO B9). Some saves keep the vinyl rate in SPEED with pitch 0 (A6: 0.8408 = −3 semitones). Bits 1–2 = **VARI mode** when VINYL is off: 0 Off, 1 Backing, 2 Ensemble (firmware `voice_set_param` param 0x70 takes `(v & 7) >> 1` and picks a stretch window of 600/400/800). Roland's app v4.05 names this word `Sample.Polyphonic` (range 0–1), so bit 0's naming is unsettled; polyphony is a chromatic-mode setting. Bits 3–5 unknown | data + v3 manual p.52 + FW |
 | 11 | 0x2C | loop start (byte offset) | FW (0x71) |
 | 12 | 0x30 | set when loop on | FW (0x72) |
 | 13 | 0x34 | signed −12..+12, pitch semitones? | data |

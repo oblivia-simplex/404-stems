@@ -1,0 +1,12 @@
+# address	name	comment  (our annotations for SP404MKII_APP1.bin v5.52, load base 0x67FA4000)
+0x680a2178	prj_get_param	Project/pad parameter getter. IDs: 10 project tempo, 0x0B tempo mode, 0x17-0x20 bank protect, 0x21-0x2A bank tempo, 0x35-0x3E bank volume, 0x64+ pad words (0x66 + word)
+0x680a01e0	prj_set_param	Project/pad parameter setter; pushes changes to the voice engine (bank volume -> voice param 6)
+0x68056af8	sx_import_set_param	Setter used by the SP-404SX PAD_INFO importer
+0x680a8a1e	sx_import_padinfo	Maps SP-404SX PAD_INFO.BIN fields onto MKII pad parameter IDs
+0x6814daf8	padconf_serialize	Writes PADCONF.BIN (byte-swapped copy of the in-memory project)
+0x6800bd70	padconf_write_header	Writes the RFPD header
+0x67fe0538	bank_is_protected	Bank edit lock check
+0x6808c648	smp_write	Writes .SMP (RFWV) files
+0x67fe0e96	sx_pattern_convert	Converts SP-404SX patterns (12 pads/bank) to the MKII layout
+0x6809d540	engine_set_pad_param	Sends a parameter to the voice(s) playing a pad
+0x68068758	voice_set_param	Voice parameter handler (param 6 = bank volume x100)
