@@ -19,6 +19,8 @@ const state = {
   active: null,
   selection: null, // {kind, number, label, sequence, pads}
   stems: [],
+  timeline: null, // {seconds, segments, hits} for the current selection
+  padNodes: new Map(),
 };
 let nextId = 1;
 
@@ -81,6 +83,9 @@ async function openProject(dir) {
   state.active = state.groups[0]?.id ?? null;
   state.selection = null;
   $("bpm").value = "";
+  let continuation = "mk2";
+  try { continuation = localStorage.getItem(`sp404-stems:continuation:${dir}`) || "mk2"; } catch {}
+  $("continuation").value = continuation;
   $("hint").textContent = "Click or drag across pads to put them in the selected stem. Right-click a pad to hear it.";
   renderSequences();
   renderWall();
@@ -96,7 +101,7 @@ function renderSequences() {
     ...(patterns.length
       ? patterns.map((p) =>
           el("li", {}, el("button", { ariaPressed: String(isSel("pattern", p.number)), onclick: () => select("pattern", p) },
-            el("span", { textContent: `Pattern ${p.label}` }), el("span", { className: "meta", textContent: `${p.bars} bars, ${p.bpm} bpm` }))))
+            el("span", { textContent: `Pattern ${p.label}` }), el("span", { className: "meta", textContent: `${p.bars} bars, ${p.bpm}` }))))
       : [el("li", { className: "empty", textContent: "No patterns in this project" })]),
   );
   $("chains").replaceChildren(
@@ -110,8 +115,9 @@ function renderSequences() {
 
 function select(kind, item) {
   const byNumber = new Map(state.project.patterns.map((p) => [p.number, p]));
-  const tempos = new Set((kind === "pattern" ? [item] : item.patterns.map((n) => byNumber.get(n)).filter(Boolean)).map((p) => p.bpm));
-  $("bpm").placeholder = tempos.size === 1 ? `${[...tempos][0]} (bank tempo)` : "Each pattern's bank tempo";
+  const tempos = [...new Set((kind === "pattern" ? [item] : item.patterns.map((n) => byNumber.get(n)).filter(Boolean)).map((p) => p.bpm))];
+  const source = state.project.useProjectTempo ? "project tempo" : "bank tempo";
+  $("bpm").placeholder = tempos.length === 1 ? `${tempos[0]} (${source})` : `Each pattern's bank tempo`;
   if (kind === "pattern") {
     state.selection = { kind, number: item.number, label: `Pattern ${item.label}`, sequence: [item.number], pads: new Set(item.pads) };
   } else {
@@ -123,6 +129,8 @@ function select(kind, item) {
       detail: parts.map((p) => p.label).join(" "),
     };
   }
+  // A single pattern loops on the device, so its tails wrap around; a chain's last sounds ring out.
+  $("tail").value = kind === "pattern" ? "wrap" : "extend";
   renderSequences();
   renderWall();
   renderRenderBox();
@@ -135,10 +143,11 @@ function renderWall() {
   const wall = $("wall");
   const used = state.selection?.pads;
   wall.classList.toggle("focused", !!used);
+  state.padNodes = new Map();
   wall.replaceChildren(
     ...[...Array(10).keys()].map((b) =>
       el("div", { className: "bank" },
-        el("h3", {}, el("span", { textContent: `Bank ${BANKS[b]}` }), el("span", { className: "bpm", textContent: `${state.project.bankBpm[b]} bpm` })),
+        el("h3", {}, `Bank ${BANKS[b]}`),
         el("div", { className: "pads" }, ...PAD_ORDER.map((i) => padEl(b * 16 + i, used))))),
   );
 }
@@ -151,6 +160,7 @@ function padEl(index, used) {
     title: pad.hasSample ? `${pad.label} ${pad.name}${g ? ` (${g.name})` : ""}` : `${pad.label} (empty)`,
   });
   node.dataset.pad = index;
+  state.padNodes.set(index, node);
   if (g) node.style.setProperty("--glow", g.color);
   node.append(el("span", { className: "num", textContent: (index % 16) + 1 }), el("span", { className: "name", textContent: pad.hasSample ? pad.name : "" }));
   if (!pad.hasSample) return node;
@@ -246,16 +256,22 @@ function renderRequest() {
     if (n > 1) name = `${name} ${n}`;
     groups[name] = [...g.pads];
   }
-  return { dir: state.project.dir, sequence: state.selection.sequence, groups, bpm: Number($("bpm").value) || undefined, tail: $("tail").value };
+  return { dir: state.project.dir, sequence: state.selection.sequence, groups, bpm: Number($("bpm").value) || undefined, tail: $("tail").value, continuation: $("continuation").value };
 }
 
 function renderRenderBox() {
   const box = $("render-box");
   box.hidden = !state.selection;
+  $("transport").hidden = !state.selection;
+  state.timeline = null;
   $("pick-hint").hidden = !!state.selection;
   if (!state.selection) return;
   $("render-title").textContent = state.selection.detail ? `${state.selection.label}: ${state.selection.detail}` : state.selection.label;
   $("status").textContent = "";
+  $("refactor-status").textContent = "";
+  $("refactor-title").textContent = `Make a new project from this ${state.selection.kind}`;
+  const base = (state.project.name || "PROJECT").replace(/\s+/g, "_");
+  $("refactor-name").value = `${base}_${state.selection.label.replace(/\s+/g, "").toUpperCase()}`;
   scheduleRender();
 }
 
@@ -263,8 +279,62 @@ let renderTimer;
 function scheduleRender() {
   if (!state.selection) return;
   clearTimeout(renderTimer);
-  renderTimer = setTimeout(refreshStems, 250);
+  renderTimer = setTimeout(() => { refreshStems(); refreshRefactorPlan(); }, 250);
 }
+
+async function refreshRefactorPlan() {
+  const list = $("refactor-plan");
+  try {
+    const { dir, sequence, groups } = renderRequest();
+    const plan = await api("/api/refactor/plan", { dir, sequence, groups });
+    const colorOf = (name) => state.groups.find((g) => g.name === name)?.color ?? "#9aa0a6";
+    const rows = [];
+    for (const s of plan.stems) {
+      const banks = [...new Set(s.moves.map((m) => m.toLabel.replace(/\d+$/, "")))];
+      const stem = el("span", { className: "stem" }, el("span", { className: "dot" }), el("span", { textContent: `${s.stem} (${s.moves.length} pads)` }));
+      stem.style.setProperty("--group", colorOf(s.stem));
+      rows.push(el("li", {}, el("span", { className: "bank", textContent: `Bank ${banks.join("–")}` }), stem));
+    }
+    for (const w of plan.warnings) rows.push(el("li", {}, el("span", { className: "note", textContent: w })));
+    for (const e of plan.errors) rows.push(el("li", {}, el("span", { className: "note error", textContent: e })));
+    list.replaceChildren(...rows);
+    $("refactor").disabled = plan.errors.length > 0;
+  } catch (err) {
+    list.replaceChildren(el("li", {}, el("span", { className: "note error", textContent: `Couldn't plan the new project: ${err.message}` })));
+    $("refactor").disabled = true;
+  }
+}
+
+$("refactor").onclick = async () => {
+  const btn = $("refactor");
+  const status = $("refactor-status");
+  btn.disabled = true;
+  status.className = "status";
+  status.textContent = "Creating project…";
+  try {
+    const { dir, sequence, groups } = renderRequest();
+    const sel = state.selection;
+    const name = $("refactor-name").value.trim();
+    if (!name) throw new Error("Give the new project a name.");
+    const data = await api("/api/refactor", { dir, sequence, groups, name, chainNumber: sel.kind === "chain" ? sel.number : undefined });
+    // Carry the stem colours and names over to the new project, now one bank per stem.
+    const carried = (await api("/api/refactor/plan", { dir, sequence, groups })).stems.map((s) => ({
+      name: s.stem, color: state.groups.find((g) => g.name === s.stem)?.color ?? COLORS[0], pads: s.moves.map((m) => m.to),
+    }));
+    try { localStorage.setItem(`sp404-stems:${data.dest}`, JSON.stringify(carried)); } catch {}
+    status.replaceChildren(
+      `Created ${data.dest} with ${data.samples} samples and ${data.patterns} patterns.`,
+      el("br"),
+      el("button", { className: "quiet", textContent: "Open new project", onclick: async () => { await scan(state.root); $("project").value = data.dest; openProject(data.dest); } }),
+      el("button", { className: "quiet", textContent: "Show in Finder", onclick: () => api(`/api/reveal?path=${encodeURIComponent(data.dest)}`) }),
+    );
+  } catch (err) {
+    status.className = "status error";
+    status.textContent = `Couldn't create the project: ${err.message}`;
+  } finally {
+    btn.disabled = false;
+  }
+};
 
 async function refreshStems() {
   const list = $("stem-previews");
@@ -273,6 +343,8 @@ async function refreshStems() {
     const req = renderRequest();
     const data = await api("/api/render", req);
     state.stems = data.stems;
+    state.timeline = data;
+    renderTracker();
     const colorOf = (name) => state.groups.find((g) => g.name === name)?.color ?? "#9aa0a6";
     list.replaceChildren(
       ...data.stems.map((name) => {
@@ -293,6 +365,10 @@ async function refreshStems() {
 
 $("bpm").onchange = scheduleRender;
 $("tail").onchange = scheduleRender;
+$("continuation").onchange = () => {
+  try { localStorage.setItem(`sp404-stems:continuation:${state.project.dir}`, $("continuation").value); } catch {}
+  scheduleRender();
+};
 $("preview-mix").dataset.key = "mix";
 $("preview-mix").onclick = () => playUrl(`/api/render.wav?req=${encodeURIComponent(JSON.stringify(renderRequest()))}`, "mix");
 
@@ -317,6 +393,104 @@ $("export").onclick = async () => {
     status.textContent = `Export failed: ${err.message}`;
   } finally {
     btn.disabled = false;
+  }
+};
+
+// ---- transport: metronome, position and tracker ----
+function renderTracker() {
+  const tl = state.timeline;
+  if (!tl) return;
+  $("segments").replaceChildren(
+    ...tl.segments.map((s) => {
+      const d = el("div", { textContent: s.label, title: `Pattern ${s.label}, ${s.bars} bars at ${s.bpm} bpm` });
+      d.style.flex = `${s.end - s.start} 0 0`;
+      return d;
+    }),
+  );
+  // Tails past the last pattern ("let ring out") take up the remaining width.
+  const last = tl.segments[tl.segments.length - 1];
+  if (last && tl.seconds > last.end + 0.01) {
+    const d = el("div", { textContent: "tail" });
+    d.style.flex = `${tl.seconds - last.end} 0 0`;
+    $("segments").append(d);
+  }
+  showPosition(player.currentTime || 0);
+}
+
+function segmentAt(t) {
+  const segs = state.timeline?.segments ?? [];
+  return segs.find((s) => t >= s.start && t < s.end) ?? null;
+}
+
+let litPads = new Set();
+function showPosition(t) {
+  const tl = state.timeline;
+  if (!tl) return;
+  $("playhead").style.left = `${Math.min(100, (t / tl.seconds) * 100)}%`;
+  const seg = segmentAt(t);
+  const beats = [...$("beats").children];
+  [...$("segments").children].forEach((d, i) => d.classList.toggle("current", tl.segments[i] === seg));
+  if (seg) {
+    const beat = Math.floor(((t - seg.start) * seg.bpm) / 60);
+    const inBar = beat % 4;
+    $("now-pattern").textContent = `Pattern ${seg.label}, ${seg.bpm} bpm`;
+    $("now-pos").textContent = `${Math.floor(beat / 4) + 1}.${inBar + 1}`;
+    const playing = !player.paused && isSelectionAudio();
+    beats.forEach((b, i) => {
+      b.classList.toggle("on", playing && i === inBar);
+      b.classList.toggle("down", i === 0);
+    });
+  } else {
+    beats.forEach((b) => b.classList.remove("on"));
+  }
+}
+
+const isSelectionAudio = () => playingKey === "mix" || playingKey?.startsWith("stem:");
+
+// Light the pads that are sounding at time t (only the playing stem's pads when previewing a stem).
+function lightPads(t) {
+  const next = new Set();
+  const struck = new Set();
+  if (state.timeline && isSelectionAudio() && !player.paused) {
+    const stem = playingKey.startsWith("stem:") ? playingKey.slice(5) : null;
+    for (const h of state.timeline.hits) {
+      if (h.start > t) break;
+      if (t < h.end && (!stem || h.stem === stem)) {
+        next.add(h.pad);
+        if (t - h.start < 0.12) struck.add(h.pad);
+      }
+    }
+  } else if (playingKey?.startsWith("pad:") && !player.paused) {
+    next.add(Number(playingKey.slice(4)));
+  }
+  for (const pad of litPads) if (!next.has(pad)) state.padNodes.get(pad)?.classList.remove("lit", "struck");
+  for (const pad of next) {
+    const n = state.padNodes.get(pad);
+    n?.classList.add("lit");
+    n?.classList.toggle("struck", struck.has(pad));
+  }
+  litPads = next;
+}
+
+function tick() {
+  const t = player.currentTime || 0;
+  if (isSelectionAudio()) showPosition(t);
+  lightPads(t);
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+$("tracker").onclick = (e) => {
+  const tl = state.timeline;
+  if (!tl) return;
+  const r = $("tracker").getBoundingClientRect();
+  const t = ((e.clientX - r.left) / r.width) * tl.seconds;
+  if (!isSelectionAudio()) {
+    playUrl(`/api/render.wav?req=${encodeURIComponent(JSON.stringify(renderRequest()))}`, "mix");
+    player.addEventListener("loadedmetadata", () => (player.currentTime = t), { once: true });
+  } else {
+    player.currentTime = t;
+    if (player.paused) player.play();
   }
 };
 

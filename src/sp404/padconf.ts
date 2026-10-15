@@ -26,14 +26,23 @@ export interface PadParams {
   reverse: boolean;
   speed: number; // 1.0 = 100%
   pan: number; // 0..127, 64 = centre
+  attack: number; // envelope fade-in, 0..127 (127 = 3 s)
+  hold: number; // envelope: % of the start..end range that plays, 1..100
+  release: number; // envelope fade-out, 0..127 (127 = 3 s)
   raw: number[]; // all 43 words, for fields not decoded yet
 }
 
 export interface PadConf {
   projectName: string;
-  // Tempo per bank A..J; a pattern plays at the tempo of the bank it is stored in.
+  bpm: number; // project tempo
+  // When false, each pattern plays at the tempo of the bank it is stored in (bankBpm) instead.
+  useProjectTempo: boolean;
   bankBpm: number[];
   pads: PadParams[];
+}
+
+export function bankTempo(conf: PadConf, bank: number): number {
+  return conf.useProjectTempo ? conf.bpm : conf.bankBpm[bank];
 }
 
 export function padLabel(index: number): string {
@@ -44,6 +53,11 @@ export function readPadConf(file: string): PadConf {
   const buf = fs.readFileSync(file);
   if (buf.toString("latin1", 0, 4) !== "RFPD") throw new Error(`${file}: not a PADCONF file`);
   const projectName = buf.toString("latin1", 0x80, 0xa0).replace(/\0.*$/s, "").trim();
+  // Header word 0x10: low 16 bits = project tempo ×100; bit 16 set = use it for every pattern.
+  const tempoWord = buf.readUInt32BE(0x10);
+  const bpm = (tempoWord & 0xffff) / 100;
+  const useProjectTempo = (tempoWord & 0x10000) !== 0;
+  // Bank words: tempo ×100 << 1; bit 0 locks the bank's pad settings.
   const bankBpm = Array.from({ length: 10 }, (_, b) => (buf.readUInt32BE(0x40 + b * 4) >>> 1) / 100);
   const namesAt = HEADER_SIZE + PAD_COUNT * RECORD_SIZE;
   const pads: PadParams[] = [];
@@ -70,8 +84,11 @@ export function readPadConf(file: string): PadConf {
       reverse: w[15] !== 0,
       speed: w[16] / 10000,
       pan: w[18],
+      attack: w[22],
+      hold: w[23] > 0 ? w[23] : 100,
+      release: w[24],
       raw: w,
     });
   }
-  return { projectName, bankBpm, pads };
+  return { projectName, bpm, useProjectTempo, bankBpm, pads };
 }

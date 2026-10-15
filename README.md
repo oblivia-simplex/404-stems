@@ -12,7 +12,9 @@ It opens `http://127.0.0.1:4040/` in your browser:
 - Pick a pattern or chain to preview the full mix or any single stem.
 - **Export stems** writes one 32-bit float WAV per stem (plus the full mix if ticked) to `~/Music/SP404 Stems/<project>/<pattern>/`. The stems always sum exactly to the mix.
 
-Playback follows the pad settings: start/end, volume, velocity, pan, gate, loop, reverse, pitch, mute groups and same-pad retriggers. Time-stretching (BPM sync) and envelopes aren't applied yet. Format notes: [docs/sp404mk2-project-format.md](docs/sp404mk2-project-format.md).
+- **Make a new project from this chain** (or pattern) copies only the pads it plays into a new project folder next to the original, one bank per stem, and rewrites the patterns to match. The original project isn't touched. A stem with more than 16 pads spills into the next bank, with a warning suggesting you split it.
+
+Playback follows the pad settings: start/end, volume, velocity, pan, gate, loop (toggling when gate is off), reverse, pitch and speed (VINYL or independent), the envelope, mute groups (with release), same-pitch retriggers, the project/bank tempo, and MK2 or SX pattern continuation. A transport bar shows the beat, bar and position in the pattern or chain, and pads light up as they play. BPM-synced pads are time-stretched to the project tempo (with a WSOLA stretcher, not the device's own algorithm); envelopes aren't applied yet. Format notes: [docs/sp404mk2-project-format.md](docs/sp404mk2-project-format.md).
 
 ## License
 

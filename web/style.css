@@ -78,6 +78,35 @@ input, select {
 .seq-list button[aria-pressed="true"] .meta { color: var(--rubber); }
 .seq-list .empty { color: var(--dim); padding: 0.3rem 0.5rem; }
 
+/* Transport: metronome lights, position readout and a tracker for the pattern or chain. */
+.transport[hidden] { display: none; }
+.transport {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 1rem; align-items: center;
+  background: var(--panel); border-radius: var(--radius-ui); padding: 0.6rem 0.8rem; margin-bottom: 0.9rem;
+}
+.clock { display: flex; align-items: center; gap: 0.8rem; }
+.beats { display: flex; gap: 6px; }
+.beats span { width: 14px; height: 14px; border-radius: 4px; background: var(--rubber); box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.4); }
+.beats span.on { background: var(--readout); box-shadow: 0 0 8px rgba(232, 235, 230, 0.6); }
+.beats span.on.down { background: #ff5a5f; box-shadow: 0 0 10px rgba(255, 90, 95, 0.7); }
+.readout { display: grid; line-height: 1.1; min-width: 7.5rem; }
+.readout .pos { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+#now-pattern { color: var(--label); font-size: 0.9rem; }
+.tracker { position: relative; height: 2.4rem; cursor: pointer; border-radius: var(--radius-ui); overflow: hidden; background: #191a1b; }
+.segments { display: flex; height: 100%; }
+.segments div {
+  border-right: 1px solid #000; padding: 0.15rem 0.35rem; font-size: 0.8rem; color: var(--label);
+  overflow: hidden; white-space: nowrap; background: var(--rubber); min-width: 0;
+}
+.segments div.current { background: #4d5357; color: var(--readout); }
+.playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--readout); left: 0; pointer-events: none; }
+
+/* Pads light up while their sound plays, with a brighter flash as they're struck. */
+.pad.lit { filter: brightness(1.35) saturate(1.2); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.35), 0 0 12px 2px color-mix(in srgb, var(--glow, #e8ebe6) 70%, transparent); }
+.pad.struck { filter: brightness(1.9) saturate(1.3); }
+.wall.focused .pad.lit { filter: brightness(1.35) saturate(1.2); }
+.wall.focused .pad.struck { filter: brightness(1.9) saturate(1.3); }
+
 .hint { color: var(--label); margin: 0 0 0.75rem; max-width: 70ch; }
 
 /* The pad wall: ten 4x4 banks, laid out like a row of devices. */
@@ -144,6 +173,15 @@ input, select {
 .stem-previews { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
 .stem-previews button { width: 100%; display: flex; align-items: center; gap: 0.5rem; text-align: left; }
 .stem-previews .dot { width: 0.7rem; height: 0.7rem; border-radius: 50%; background: var(--group); flex: none; }
+.refactor { border-top: 1px solid var(--rubber); padding-top: 0.9rem; margin-top: 0.4rem; display: grid; gap: 0.6rem; }
+.refactor .hint { margin: 0; }
+.refactor-plan { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.refactor-plan li { display: grid; grid-template-columns: 4.2rem minmax(0, 1fr); gap: 0.4rem; align-items: baseline; }
+.refactor-plan .bank { color: var(--label); }
+.refactor-plan .stem { display: flex; gap: 0.4rem; align-items: center; min-width: 0; }
+.refactor-plan .dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; background: var(--group); flex: none; }
+.refactor-plan .note { grid-column: 1 / -1; color: #ffd27a; }
+.refactor-plan .note.error { color: #ff9b8f; }
 .status { color: var(--label); margin: 0; overflow-wrap: anywhere; }
 .status button { margin-top: 0.4rem; }
 .status.error { color: #ff9b8f; }

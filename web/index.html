@@ -31,6 +31,16 @@
     </aside>
 
     <section class="wall-wrap">
+      <div id="transport" class="transport" hidden>
+        <div class="clock">
+          <div id="beats" class="beats" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+          <div class="readout"><span id="now-pattern">–</span><span id="now-pos" class="pos">1.1</span></div>
+        </div>
+        <div id="tracker" class="tracker" title="Click to play from here">
+          <div id="segments" class="segments"></div>
+          <div id="playhead" class="playhead"></div>
+        </div>
+      </div>
       <p id="hint" class="hint">Click or drag across pads to put them in the selected stem. Right-click a pad to hear it.</p>
       <div id="wall" class="wall"></div>
     </section>
@@ -56,6 +66,12 @@
               <option value="extend">Let ring out</option>
             </select>
           </label>
+          <label>When the pattern changes
+            <select id="continuation">
+              <option value="mk2">Cut sounds off (MK2)</option>
+              <option value="sx">Let sounds ring on (SX)</option>
+            </select>
+          </label>
         </div>
         <button id="preview-mix" class="play-btn">Play full mix</button>
         <ul id="stem-previews" class="stem-previews"></ul>
@@ -63,6 +79,15 @@
         <label class="check"><input id="include-mix" type="checkbox" checked> Also save the full mix</label>
         <button id="export" class="primary">Export stems</button>
         <p id="status" class="status" role="status"></p>
+
+        <div class="refactor">
+          <h2 id="refactor-title">Make a new project from this</h2>
+          <p class="hint">Copies only the pads these patterns play into a new project, with each stem in its own bank. This project isn't changed.</p>
+          <label class="out">New project name <input id="refactor-name" spellcheck="false"></label>
+          <ul id="refactor-plan" class="refactor-plan"></ul>
+          <button id="refactor" class="primary">Create new project</button>
+          <p id="refactor-status" class="status" role="status"></p>
+        </div>
       </div>
       <p id="pick-hint" class="hint">Pick a pattern or chain to preview and export its stems.</p>
     </aside>

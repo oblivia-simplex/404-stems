@@ -65,11 +65,11 @@ Footer byte 0 = length in bars (4/4). Total ticks = bars × 1920.
 ## `PADCONF.BIN` (magic `RFPD`)
 
 - Header 0xA0 bytes: "RFPD", 0xA0, 0x03000000, 0x7A80 (written by `FUN_6800bd70`), project name at 0x80.
-- Bank tempos: header words at 0x40..0x64 (one per bank A..J), value = BPM×100 << 1, bit 0 = flag.
-  **A pattern plays at the tempo of the bank it is stored in** (PTN00033–48 → bank C). Patterns
-  hold no tempo themselves. Evidence: in every project the banks holding patterns carry the
-  distinctive tempos, and the user confirmed 90 BPM was wrong for P4 pattern C2 (bank C = 85).
-- Header word at 0x10 is **not** a tempo (often 0x12328-ish, i.e. flags plus 9000).
+- **Tempo**: header word 0x10, low 16 bits = project BPM×100 (getter ID 10); bit 16 (ID 0x0B) = tempo mode.
+  - bit 16 = 1: every pattern plays at the project tempo (BELLELNI 0x11D4C → 75; confirmed by the user).
+  - bit 16 = 0: each pattern plays at the tempo of the bank it's stored in (P4 pattern C2 → bank C = 85).
+- Header words 0x40..0x64, one per bank A..J (IDs 0x21–0x2A): bank tempo = value >> 1 (BPM×100).
+  Bit 0 (IDs 0x17–0x20) locks editing of that bank's pad settings (`FUN_67fe0538`).
 - Whole-file layout from the serializer (`FUN_6814daf8`): 0x10 head + 0x90 header + 0x6B80 pad
   records + 0xF00 names + 0x5000 (160 × 128, undecoded) = 52,000 bytes.
 - 160 pad records × 0xAC bytes at 0xA0 (43 BE u32 words). The firmware serializer (`FUN_6814daf8`)
@@ -86,15 +86,15 @@ Footer byte 0 = length in bars (4/4). Total ticks = bars × 1920.
 | 4  | 0x10 | **gate** 0/1 | FW (0x6A ← SX gate) |
 | 5  | 0x14 | **loop** (0 / 0x7FFFFFFF) | FW (0x6B ← SX loop) |
 | 7  | 0x1C | mute group (0 = off)? Hi-hats F5–F8 share 6 | data |
-| 8  | 0x20 | **BPM sync** | FW (0x6E ← SX tempo mode) |
+| 8  | 0x20 | **BPM sync**: the region is time-stretched (pitch kept) by tempo ÷ word 9 | FW (0x6E ← SX tempo mode); BELLELNI H5 |
 | 9  | 0x24 | original BPM ×100 | FW (0x6F) |
-| 10 | 0x28 | 0..32, unknown | |
+| 10 | 0x28 | bit 0 = **VINYL mode** (pitch and speed together; pads with it never exceed +7 semitones, matching the manual's −12…+7). Bits 1–2 = **VARI mode** when VINYL is off: 0 Off, 1 Backing, 2 Ensemble. Bits 3–5 unknown | data + v3 manual p.52 |
 | 11 | 0x2C | loop start (byte offset) | FW (0x71) |
 | 12 | 0x30 | set when loop on | FW (0x72) |
 | 13 | 0x34 | signed −12..+12, pitch semitones? | data |
 | 14 | 0x38 | signed, fine tune cents? | data |
 | 15 | 0x3C | **reverse** (SX import writes 2; 1 seen in data) | FW (0x75 ← SX reverse) |
-| 16 | 0x40 | speed ×10000 (SX: user tempo / tempo) | FW (0x76) |
+| 16 | 0x40 | speed ×10000 (playback timing, independent of pitch except in VINYL). On synced pads it holds tempo at save ÷ original BPM (H5: 75/108.28 = 6927) | FW (0x76) |
 | 17 | 0x44 | 0/1, unknown | |
 | 18 | 0x48 | pan 0–127, 0x40 = centre | data |
 | 20 | 0x50 | 0/1/2 (bus?) | |
@@ -102,3 +102,17 @@ Footer byte 0 = length in bars (4/4). Total ticks = bars × 1920.
 
 - Sample names: 160 × 24-byte NUL-terminated strings at `0xA0 + 160·0xAC` (0x6C20).
   This is followed by 20,480 more bytes (160 × 128) that are not yet decoded.
+
+## Time-stretch algorithms
+
+The manual (v3, p.52) lists VINYL MODE (Yes/No) and VARI MODE (Off / Backing / Ensemble), the latter "based on
+VariPhrase". The DSP doing this isn't readable: APP0 is encrypted apart from a data region (float tables at
+0x1F0000–0x238000) and a non-ARM block at 0x140000 that looks like microcode for a custom DSP. The renderer
+approximates each mode from its description (src/sp404/stretch.ts).
+
+## Pattern continuation (device setting)
+
+The MK2 has two pattern continuation modes (from the user; not found in the project files yet):
+- MK2: sounds still playing from pattern X stop the instant a different pattern Y starts; X repeating itself carries on.
+- SX: sounds from X ring on into Y until they finish.
+The renderer exposes this as an option (default MK2).
