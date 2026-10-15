@@ -136,11 +136,17 @@ function stereo(frames: number): StereoBuffer {
 
 // PAN is a balance control (measured on the user's unit: project 5, F10 at L25 and R25 resampled to C15). The
 // near side stays at full level, the far side falls linearly to 0 at 50, and the channels never mix: L25 gave
-// left 0.996 × left, right 0.499 × right. Stored 0x40 ± 50 (L50..R50); 13 and 115 are MONO (Left) / MONO (Right),
-// treated as L50 / R50 here (not measured).
+// left 0.996 × left, right 0.499 × right. Stored 0x40 ± 50 (L50..R50).
 export function panGains(pan: number): [number, number] {
+  if (monoChannel(pan)) return [1, 1];
   const offset = Math.min(50, Math.max(-50, pan - 64));
   return [offset > 0 ? 1 - offset / 50 : 1, offset < 0 ? 1 + offset / 50 : 1];
+}
+
+// Past L50 / R50 are MONO (Left) = 13 and MONO (Right) = 115 (user-described): the sample's left (or right) channel
+// plays on both outputs and the other channel is dropped.
+export function monoChannel(pan: number): "left" | "right" | undefined {
+  return pan <= 13 ? "left" : pan >= 115 ? "right" : undefined;
 }
 
 // Envelope times: 0..127 maps to 0..3 seconds (the manual gives 127 = 3 s; linear is an assumption).
@@ -162,6 +168,9 @@ function renderVoice(project: Project, p: PadParams, voice: Voice, out: StereoBu
   const [gl, gr] = panGains(p.pan);
   const gainL = voice.gain * gl;
   const gainR = voice.gain * gr;
+  const mono = monoChannel(p.pan);
+  const srcL = mono === "right" ? s.right : s.left;
+  const srcR = mono === "left" ? s.left : s.right;
   const hardStop = Math.min(limit, voice.stop + stopFade, voice.start + natural);
   let o = voice.start;
   for (let k = 0; o < hardStop; k++, o++) {
@@ -180,8 +189,8 @@ function renderVoice(project: Project, p: PadParams, voice: Voice, out: StereoBu
     // Fade-out over the release time, ending where the played range ends.
     if (release && natural !== Infinity && natural - k < release) env *= Math.max(0, natural - k) / release;
     if (o >= voice.stop) env *= Math.max(0, 1 - (o - voice.stop) / stopFade);
-    out.left[o] += (s.left[i] + (s.left[j] - s.left[i]) * f) * gainL * env;
-    out.right[o] += (s.right[i] + (s.right[j] - s.right[i]) * f) * gainR * env;
+    out.left[o] += (srcL[i] + (srcL[j] - srcL[i]) * f) * gainL * env;
+    out.right[o] += (srcR[i] + (srcR[j] - srcR[i]) * f) * gainR * env;
   }
   return o;
 }

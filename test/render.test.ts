@@ -95,7 +95,7 @@ test("velocity and pad volume scale the level", () => {
 
 test("pan: hard left and hard right (L50 / R50)", () => {
   const p = project({
-    samples: [{ pad: 0, left: dc(100), words: { [W.pan]: 0 } }, { pad: 1, left: dc(100), words: { [W.pan]: 127 } }],
+    samples: [{ pad: 0, left: dc(100), words: { [W.pan]: 14 } }, { pad: 1, left: dc(100), words: { [W.pan]: 114 } }],
     patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }, { tick: 960, pad: 1 }] }],
   });
   const r = renderStems(p, [1], {}, CUT);
@@ -103,6 +103,21 @@ test("pan: hard left and hard right (L50 / R50)", () => {
   close(r.mix.right[0], 0);
   close(r.mix.left[960 * TICK], 0);
   close(r.mix.right[960 * TICK], 0.5);
+});
+
+test("pan MONO (Left/Right): one channel of the sample on both outputs, the other dropped", () => {
+  const p = project({
+    samples: [
+      { pad: 0, left: dc(100, 0.5), right: dc(100, -0.25), words: { [W.pan]: 13 } },
+      { pad: 1, left: dc(100, 0.5), right: dc(100, -0.25), words: { [W.pan]: 115 } },
+    ],
+    patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }, { tick: 960, pad: 1 }] }],
+  });
+  const r = renderStems(p, [1], {}, CUT);
+  close(r.mix.left[0], 0.5);
+  close(r.mix.right[0], 0.5);
+  close(r.mix.left[960 * TICK], -0.25);
+  close(r.mix.right[960 * TICK], -0.25);
 });
 
 test("a one-shot plays its whole sample, then stops", () => {
@@ -372,6 +387,7 @@ test("pan is a balance: matches the unit's resample at L25 and R25", () => {
   close(r25R, 0.9983, 5e-3);
   assert.deepEqual(panGains(64), [1, 1]);
   assert.deepEqual(panGains(14), [1, 0]);
+  assert.deepEqual(panGains(13), [1, 1]);
 });
 
 test("pan never mixes the channels: a left-only sample panned right stays left-only, quieter", () => {
