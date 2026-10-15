@@ -47,6 +47,8 @@ There is no encryption. Swap bytes from offset 0x200 to get WAV data.
 | 5 | always 0x40 so far |
 | 6–7 | note length in ticks, **little-endian** |
 
+Swing is applied when hits are recorded: the stored tick positions already include it, and changing swing later doesn't move them (user), so playback needs no swing setting.
+
 Pad index (0..159) = `(byte1 − 0x2F) + 80·(byte2 & 1)`, then bank = idx / 16, pad = idx % 16.
 Validated: all 1,096 events in P4 map to existing samples. The firmware also converts SP-404SX
 patterns (12 pads/bank) to this layout (`0x67FE0E96`).
