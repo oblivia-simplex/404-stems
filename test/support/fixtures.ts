@@ -36,6 +36,7 @@ export interface PadConfSpec {
   bpm?: number;
   useProjectTempo?: boolean;
   bankBpm?: number[]; // 10 values
+  bankVolume?: number[]; // 10 values, 0..127 (default 127)
   pads?: PadSpec[];
 }
 
@@ -49,6 +50,11 @@ export function padWords(frames: number, channels = 2): Record<number, number> {
   };
 }
 
+/** BANK VOLUME's offset: two banks per big-endian u32 at 0x6C, the even bank in the low (second) half. */
+export function bankVolumeOffset(bank: number): number {
+  return 0x6c + 4 * (bank >> 1) + (bank % 2 === 0 ? 2 : 0);
+}
+
 export function makePadConf(spec: PadConfSpec = {}): Buffer {
   const buf = Buffer.alloc(PADCONF_SIZE);
   buf.write("RFPD", 0, "latin1");
@@ -56,6 +62,7 @@ export function makePadConf(spec: PadConfSpec = {}): Buffer {
   buf.writeUInt32BE(Math.round(bpm * 100) | (spec.useProjectTempo === false ? 0 : 0x10000), 0x10);
   const banks = spec.bankBpm ?? new Array(10).fill(bpm);
   banks.forEach((b, i) => buf.writeUInt32BE(Math.round(b * 100) << 1, 0x40 + i * 4));
+  (spec.bankVolume ?? []).forEach((v, b) => buf.writeUInt16BE(127 - v, bankVolumeOffset(b)));
   buf.write((spec.name ?? "TEST PROJECT").padEnd(31, " "), 0x80, "latin1");
   const namesAt = HEADER_SIZE + PAD_COUNT * RECORD_SIZE;
   const extraAt = namesAt + PAD_COUNT * NAME_SIZE;

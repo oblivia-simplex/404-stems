@@ -38,11 +38,20 @@ export interface PadConf {
   // When false, each pattern plays at the tempo of the bank it is stored in (bankBpm) instead.
   useProjectTempo: boolean;
   bankBpm: number[];
+  // BANK VOLUME per bank, 0..127 (127 = the default, full level).
+  bankVolume: number[];
   pads: PadParams[];
 }
 
 export function bankTempo(conf: PadConf, bank: number): number {
   return conf.useProjectTempo ? conf.bpm : conf.bankBpm[bank];
+}
+
+// BANK VOLUME: header 0x6C..0x7F, one 16-bit value per bank (firmware IDs 0x35..0x3E). Each 32-bit word holds two
+// banks, the even one in its low half, so it comes second in the big-endian file. Stored as 127 - volume, so untouched
+// projects store 0 (confirmed on the user's unit: banks at 90 store 0x25).
+export function bankVolumeOffset(bank: number): number {
+  return 0x6c + 4 * (bank >> 1) + (bank % 2 === 0 ? 2 : 0);
 }
 
 export function padLabel(index: number): string {
@@ -59,6 +68,7 @@ export function readPadConf(file: string): PadConf {
   const useProjectTempo = (tempoWord & 0x10000) !== 0;
   // Bank words: tempo ×100 << 1; bit 0 locks the bank's pad settings.
   const bankBpm = Array.from({ length: 10 }, (_, b) => (buf.readUInt32BE(0x40 + b * 4) >>> 1) / 100);
+  const bankVolume = Array.from({ length: 10 }, (_, b) => Math.max(0, 127 - buf.readUInt16BE(bankVolumeOffset(b))));
   const namesAt = HEADER_SIZE + PAD_COUNT * RECORD_SIZE;
   const pads: PadParams[] = [];
   for (let i = 0; i < PAD_COUNT; i++) {
@@ -90,5 +100,5 @@ export function readPadConf(file: string): PadConf {
       raw: w,
     });
   }
-  return { projectName, bpm, useProjectTempo, bankBpm, pads };
+  return { projectName, bpm, useProjectTempo, bankBpm, bankVolume, pads };
 }

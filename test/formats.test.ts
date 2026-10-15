@@ -251,3 +251,18 @@ test("16-bit WAV: header, quantisation and clipping", () => {
 test("empty WAVs are valid", () => {
   assert.equal(encodeWavFloat(new Float32Array(0), new Float32Array(0), 48000).length, 44);
 });
+
+test("PADCONF: BANK VOLUME is stored as 127 minus the level, two banks per word", () => {
+  // Project 2 on the user's unit: banks at 90 store 0x25; bank F, left at 127, stores 0.
+  const buf = makePadConf();
+  Buffer.from("00250025002500250000002500250025", "hex").copy(buf, 0x6c);
+  const dir = tempDir();
+  fs.writeFileSync(path.join(dir, "PADCONF.BIN"), buf);
+  assert.deepEqual(readPadConf(path.join(dir, "PADCONF.BIN")).bankVolume, [90, 90, 90, 90, 90, 127, 90, 90, 127, 127]);
+});
+
+test("PADCONF: an untouched project has every bank at 127", () => {
+  const dir = tempDir();
+  fs.writeFileSync(path.join(dir, "PADCONF.BIN"), makePadConf());
+  assert.deepEqual(readPadConf(path.join(dir, "PADCONF.BIN")).bankVolume, new Array(10).fill(127));
+});

@@ -329,3 +329,15 @@ test("renderPad: one hit of a pad, at its volume", () => {
   close(b.left[10], 0.5 * PAN_L);
   assert.equal(renderPad(p, 8).left.length, 0, "silent for a pad with no sample range");
 });
+
+test("BANK VOLUME scales every pad in its bank, in patterns and previews", () => {
+  const bankVolume = [127, 90, 127, 127, 127, 127, 127, 127, 127, 127];
+  const p = project({
+    bankVolume,
+    samples: [{ pad: 0, left: dc(1000) }, { pad: 16, left: dc(1000) }],
+    patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }] }, { number: 2, notes: [{ tick: 0, pad: 16 }] }],
+  });
+  close(renderStems(p, [1], {}, CUT).mix.left[10], 0.5 * PAN_L);
+  close(renderStems(p, [2], {}, CUT).mix.left[10], 0.5 * (90 / 127) * PAN_L);
+  close(renderPad(p, 16).left[10], 0.5 * (90 / 127) * PAN_L);
+});

@@ -76,9 +76,11 @@ isn't the length.
   Bit 0 (IDs 0x17–0x20) locks editing of that bank's pad settings (`FUN_67fe0538`).
 - Header 0x68 (ID 0x2B–0x34): ten bank flags, bit *b* for bank *b* (meaning not confirmed).
 - **Bank volume**: header 0x6C–0x7F, ten 16-bit values for banks A–J (IDs 0x35–0x3E; Roland's app: `Project.BankA.Volume`…,
-  range 0–127). Each u32 word holds two banks, with the even bank in the low half, so it is stored second in the file. Setting
-  one pushes voice parameter 6 (stored ×100) to all 16 pads of that bank. Every project seen so far stores 0, so 0 must mean
-  "not set". The renderer doesn't apply bank volume yet, because the gain scale isn't known.
+  range 0–127, default 127). Stored as **127 − volume**, so an untouched project stores 0. Each u32 word holds two banks, with
+  the even bank in the low half, so it is stored second in the file. Confirmed on the user's unit: project 2 has nine banks
+  at 90 (stored 0x25) and bank F at 127 (stored 0), giving `00250025 00250025 00000025 00250025 00250025` at 0x6C. Setting
+  one pushes voice parameter 6 to all 16 pads of that bank. The renderer plays a pad at pad volume/127 × bank volume/127,
+  and the refactor tool folds a pad's old bank volume into its own volume, since pads change banks.
 - Whole-file layout from the serializer (`FUN_6814daf8`): 0x10 head + 0x90 header + 0x6B80 pad
   records + 0xF00 names + 0x5000 (160 × 128, undecoded) = 52,000 bytes.
 - 160 pad records × 0xAC bytes at 0xA0 (43 BE u32 words). The firmware serializer (`FUN_6814daf8`)

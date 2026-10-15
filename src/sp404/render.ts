@@ -64,6 +64,12 @@ interface Source {
 
 // Pad word 10: bit 0 = VINYL mode (pitch and speed change together, like a record; no tempo sync);
 // bits 1-2 = VARI mode used when VINYL is off: 0 = Off, 1 = Backing (attacky sounds), 2 = Ensemble (sustained).
+// Pad volume × its bank's BANK VOLUME, both 0..127.
+export function padGain(project: Project, pad: number): number {
+  const bank = project.conf.bankVolume?.[Math.floor(pad / 16)] ?? 127;
+  return (project.conf.pads[pad].volume / 127) * (bank / 127);
+}
+
 export function isVinyl(p: PadParams): boolean {
   return (p.raw[10] & 1) !== 0;
 }
@@ -205,7 +211,7 @@ export function renderStems(
         stop: p.gate ? start + Math.max(1, Math.round(e.length * framesPerTick)) : Infinity,
         gated: p.gate,
         cut: p.gate ? "gate" : undefined,
-        gain: (p.volume / 127) * (e.velocity / 127),
+        gain: padGain(project, e.pad) * (e.velocity / 127),
         note: e.note,
         bpm: patternBpm(project, n, opts),
       });
@@ -326,7 +332,7 @@ export function renderPad(project: Project, pad: number): StereoBuffer {
   if (!project.hasSample[pad]) return stereo(0);
   const p = { ...project.conf.pads[pad], loop: false };
   // Synced pads preview at the tempo of their bank (or the project tempo, if that's in use).
-  const voice: Voice = { pad, start: 0, stop: Infinity, gain: p.volume / 127, note: 0, bpm: bankTempo(project.conf, Math.floor(pad / 16)) };
+  const voice: Voice = { pad, start: 0, stop: Infinity, gain: padGain(project, pad), note: 0, bpm: bankTempo(project.conf, Math.floor(pad / 16)) };
   const src = voiceSource(project, p, voice);
   if (!src) return stereo(0);
   const out = stereo(Math.ceil((src.end - src.start) / src.ratio) + 2);

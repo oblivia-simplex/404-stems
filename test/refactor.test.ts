@@ -134,3 +134,20 @@ test("execute: refuses a plan with errors, writing nothing", () => {
   assert.throws(() => executeRefactor(source(), [99], GROUPS, dest, "X"), /nothing to copy/);
   assert.ok(!fs.existsSync(dest));
 });
+
+test("execute: a pad's old BANK VOLUME is folded into its own volume, banks reset to 127", () => {
+  // C5 (bank C at 90) moves to B1, whose bank would otherwise play it at a different level.
+  const src = writeProject(path.join(tempDir(), "P5_BANKS"), {
+    bankVolume: [127, 127, 90, 127, 127, 127, 127, 127, 127, 127],
+    samples: [{ pad: 0, left: dc(1000, 0.3) }, { pad: 36, left: dc(1000, 0.3), words: { [W.volume]: 100 } }],
+    patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }, { tick: 0, pad: 36 }] }],
+  });
+  const before = loadProject(src);
+  const dest = path.join(path.dirname(src), "P5_OUT");
+  executeRefactor(before, [1], { drums: [0], bass: [36] }, dest, "OUT");
+  const conf = readPadConf(path.join(dest, "PADCONF.BIN"));
+  assert.deepEqual(conf.bankVolume, new Array(10).fill(127));
+  assert.equal(conf.pads[16].volume, Math.round((100 * 90) / 127));
+  const a = renderStems(before, [1], {}, { tail: "cut" }).mix, b = renderStems(loadProject(dest), [1], {}, { tail: "cut" }).mix;
+  assert.ok(Math.abs(a.left[10] - b.left[10]) < 0.003, `${a.left[10]} vs ${b.left[10]}`);
+});
