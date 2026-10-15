@@ -43,7 +43,7 @@ There is no encryption. Swap bytes from offset 0x200 to get WAV data.
 | 1 | pad code. `0x80` = no event (time filler), `0x8C` = end of data |
 | 2 | bit0: upper half of banks (+80 pads); bit6: unknown (seen 0x40) |
 | 3 | unknown. Small values (6..23) and 0x8D–0x90 seen; possibly a pitch-mode note |
-| 4 | velocity 1–127, linear gain velocity/127 (measured on the unit: 11 hits from 2 to 37, each within 0.1 dB) |
+| 4 | velocity 1–127, linear gain velocity/127 (measured on the unit: 19 hits from 2 to 127, each within 0.1 dB apart from slight clipping at 127) |
 | 5 | always 0x40 so far |
 | 6–7 | note length in ticks, **little-endian** |
 

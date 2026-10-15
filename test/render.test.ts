@@ -355,8 +355,9 @@ test("pad volume is linear: matches the unit's resample of a pad at 64", () => {
 });
 
 test("velocity is linear: matches the unit's resample of a pattern", () => {
-  // Measured: project 5 pattern B2, F10 at 11 velocities resampled to C15; every hit came out at velocity/127 (±0.1 dB).
-  const measured: [number, number][] = [[2, 0.0156], [5, 0.0392], [14, 0.11007], [25, 0.19665], [37, 0.29118]];
+  // Measured: project 5 patterns B2 (played) and B3 (TR-REC, 10..127), F10 resampled to C15; every hit came out at
+  // velocity/127 within 0.1 dB (127 itself read 0.9953, likely clipping: F10 peaks at full scale).
+  const measured: [number, number][] = [[2, 0.0156], [5, 0.0392], [14, 0.11007], [25, 0.19665], [40, 0.31479], [70, 0.55123], [100, 0.78683]];
   const p = project({ samples: [{ pad: 0, left: dc(400) }], patterns: [{ number: 1, notes: measured.map(([v], i) => ({ tick: i * 240, pad: 0, velocity: v })) }] });
   const r = renderStems(p, [1], {}, CUT);
   measured.forEach(([, g], i) => close(r.mix.left[i * 240 * TICK + 10] / (0.5 * PAN_L), g, 5e-4));
