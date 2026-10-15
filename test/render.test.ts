@@ -384,7 +384,7 @@ test("PLAY: only odd values (Reverse-A, Reverse-B) play backwards", () => {
   }
 });
 
-test("PLAY Normal-B: a ping-pong loop runs forwards, back to the loop start, then forwards again", () => {
+test("PLAY Normal-B: a ping-pong loop runs forwards, back to the loop start, then forwards again (verified on the unit)", () => {
   const ramp = Float32Array.from({ length: 1000 }, (_, i) => i / 2000);
   const p = project({ samples: [{ pad: 0, left: ramp, words: { [W.reverse]: 2, [W.loop]: 0x7fffffff } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }] }] });
   const out = renderStems(p, [1], {}, CUT).mix.left;
