@@ -101,14 +101,14 @@ isn't the length.
 | 7  | 0x1C | mute group (0 = off)? Hi-hats F5–F8 share 6 | data |
 | 8  | 0x20 | **BPM sync**: the region is time-stretched (pitch kept) by tempo ÷ word 9 | FW (0x6E ← SX tempo mode); BELLELNI H5 |
 | 9  | 0x24 | original BPM ×100 | FW (0x6F) |
-| 10 | 0x28 | bit 0 = **VINYL mode**: plain resampling at 2^(pitch/12) × SPEED; BPM sync doesn't stretch a VINYL pad, and with sync on SPEED is stale and ignored (user-confirmed, ORANGUTANGO B9). Some saves keep the vinyl rate in SPEED with pitch 0 (A6: 0.8408 = −3 semitones). Bits 1–2 = **VARI mode** when VINYL is off: 0 Off, 1 Backing, 2 Ensemble (firmware `voice_set_param` param 0x70 takes `(v & 7) >> 1` and picks a stretch window of 600/400/800). Roland's app v4.05 names this word `Sample.Polyphonic` (range 0–1), so bit 0's naming is unsettled; polyphony is a chromatic-mode setting. Bits 3–5 unknown | data + v3 manual p.52 + FW |
+| 10 | 0x28 | bit field (Roland's app calls the word `Sample.Polyphonic`): bit 0 = **Fixed Velocity**, bits 1–2 = **VARI** stretch type 0 Off / 1 Backing / 2 Ensemble (firmware stretch window 600/400/800), bits 3–4 unknown, bit 5 = **One Shot** (plays to the end, ignores hits while sounding; turning it on clears GATE, LOOP and TOP). Earlier versions of this doc read bit 0 as VINYL; that was wrong | FW (`firmware/NOTES.md`) |
 | 11 | 0x2C | loop start (byte offset) | FW (0x71) |
 | 12 | 0x30 | set when loop on | FW (0x72) |
 | 13 | 0x34 | signed −12..+12, pitch semitones? | data |
 | 14 | 0x38 | signed, fine tune cents? | data |
-| 15 | 0x3C | **reverse** (SX import writes 2; 1 seen in data) | FW (0x75 ← SX reverse) |
+| 15 | 0x3C | **PLAY**: 0 Normal-A, 1 Reverse-A, 2 Normal-B, 3 Reverse-B; bit 0 = reverse ("-B" is ping-pong in Roland's app 4.05, not rendered) | FW |
 | 16 | 0x40 | speed ×10000 (playback timing, independent of pitch except in VINYL). On synced pads it holds tempo at save ÷ original BPM (H5: 75/108.28 = 6927) | FW (0x76) |
-| 17 | 0x44 | 0/1, unknown | |
+| 17 | 0x44 | **VINYL** No/Yes: plain resampling at 2^(pitch/12) × SPEED; some saves keep the vinyl rate in SPEED (ORANGUTANGO A6: 0.8408 = −3 semitones). With BPM sync the tempo ratio replaces SPEED (assumed, not measured) | FW (parameter-name table) + data |
 | 18 | 0x48 | **pan**, a balance control: 0x40 = centre, ±50 = L50/R50, 13/115 = MONO (Left/Right): the sample's left (right) channel plays on both outputs and the other is dropped (user-described). Otherwise the near side stays at full level and the far side falls linearly (L25: right × 0.5); channels never mix. Measured on the user's unit | data + unit |
 | 20 | 0x50 | 0/1/2 (bus?) | |
 | 22–24 | 0x58–0x60 | attack / hold % / release. Attack and release are linear fades; 0–127 maps linearly to 0–3 s of the sample's own time, so they scale with playback speed (measured on the unit: at speed 1, attack 64 and release 64 are straight ramps of 1.512 s = 64/127 × 3 s, sample-exact; at speed 1.0859 both lasted 1.39 s; at 127 both are straight 3.00 s ramps, so the value-to-time mapping is linear). Hold % sets the playback range; fades are applied within it, so the release ends at the hold point (manual p.49, and release 64 at hold 100 ended exactly at the sample end). With release 0 the cut is abrupt (hold 50 ended at exactly half the vocal). With GATE on, letting go of the pad starts a linear fade of the full release time (release 60 tapped briefly: a 1.413 s fade from the note-off; predicted 1.417 s). Release ends where the played range ends | data + unit |

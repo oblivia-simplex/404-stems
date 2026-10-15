@@ -18,7 +18,7 @@ export function tempDir(prefix = "sp404-test-"): string {
 // Pad words, by index (see docs/sp404mk2-project-format.md).
 export const W = {
   length: 0, start: 1, end: 2, volume: 3, gate: 4, loop: 5, muteGroup: 7, bpmSync: 8, bpm: 9,
-  mode: 10, loopStart: 11, pitch: 13, fine: 14, reverse: 15, speed: 16, pan: 18, attack: 22, hold: 23, release: 24,
+  mode: 10, loopStart: 11, pitch: 13, fine: 14, reverse: 15, speed: 16, vinyl: 17, pan: 18, attack: 22, hold: 23, release: 24,
 } as const;
 
 const EMPTY_WORDS: Record<number, number> = { 3: 0x7f, 4: 1, 6: 1, 9: 9000, 16: 10000, 17: 1, 18: 0x40, 20: 1, 21: 2, 23: 100 };
@@ -46,7 +46,7 @@ export function padWords(frames: number, channels = 2): Record<number, number> {
   return {
     ...EMPTY_WORDS,
     [W.length]: bytes, [W.start]: SMP_HEADER, [W.end]: SMP_HEADER + bytes, [W.loopStart]: SMP_HEADER,
-    [W.volume]: 127, [W.gate]: 0, [W.bpm]: 12000, [W.mode]: 1, [W.speed]: 10000, [W.pan]: 64, [W.hold]: 100,
+    [W.volume]: 127, [W.gate]: 0, [W.bpm]: 12000, [W.mode]: 0, [W.vinyl]: 1, [W.speed]: 10000, [W.pan]: 64, [W.hold]: 100,
   };
 }
 

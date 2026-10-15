@@ -78,8 +78,10 @@ export function padGain(project: Project, pad: number): number {
   return (project.conf.pads[pad].volume / 127) * bankGain(bank);
 }
 
+// VINYL is pad word 17 (the firmware's parameter-name table labels it "VINYL"; Roland's app shows No/Yes). Word 10
+// is a bit field: bit 0 Fixed Velocity, bits 1-2 VARI (stretch) type, bit 5 One Shot.
 export function isVinyl(p: PadParams): boolean {
-  return (p.raw[10] & 1) !== 0;
+  return p.raw[17] === 1;
 }
 export function variMode(p: PadParams): number {
   return (p.raw[10] >> 1) & 3;
@@ -99,10 +101,10 @@ function voiceSource(project: Project, p: PadParams, voice: Voice): Source | nul
   const pitchRatio = Math.pow(2, (p.pitch + voice.note + p.fine / 100) / 12);
   const rateRatio = s.rate / OUTPUT_RATE;
   if (isVinyl(p)) {
-    // VINYL: plain resampling, like a record. The pitch setting is the speed (-12..+7 = 50..150%) and BPM sync
-    // doesn't stretch the pad (user-confirmed on ORANGUTANGO B9). Older saves keep the vinyl rate in SPEED
-    // instead (A6: pitch 0, speed 0.8408 = -3 semitones); with sync on, SPEED can't be set and holds a stale value.
-    const vinylSpeed = !p.bpmSync && p.speed > 0 ? p.speed : 1;
+    // VINYL: plain resampling, like a record, at 2^(pitch/12) × speed. Some saves keep the vinyl rate in SPEED
+    // (ORANGUTANGO A6: pitch 0, speed 0.8408 = -3 semitones). With BPM sync on, SPEED can't be set; the tempo ratio
+    // takes its place, so pitch follows tempo like a turntable (assumed, not measured on the unit yet).
+    const vinylSpeed = p.bpmSync && p.bpm > 0 ? voice.bpm / p.bpm : p.speed > 0 ? p.speed : 1;
     return { left: s.left, right: s.right, start, end, loopStart, ratio: rateRatio * pitchRatio * vinylSpeed, reverse: p.reverse, timeRate: pitchRatio * vinylSpeed };
   }
   // Playback speed: BPM-synced pads follow the current tempo; others use their speed setting.
@@ -157,6 +159,15 @@ export function monoChannel(pan: number): "left" | "right" | undefined {
 const envFrames = (v: number, timeRate = 1) => Math.round(((Math.max(0, v) / 127) * 3 * OUTPUT_RATE) / timeRate);
 
 // Mix one voice into `out` starting at `voice.start`; returns the frame after its last sample.
+// How long a voice plays if nothing stops it, in output frames (Infinity for loops).
+function naturalFrames(project: Project, p: PadParams, voice: Voice): number {
+  const s = voiceSource(project, p, voice);
+  if (!s) return 0;
+  if (p.loop) return Infinity;
+  const played = Math.max(2, Math.floor(((s.end - s.start) * Math.min(100, p.hold)) / 100));
+  return Math.floor((played - 1) / s.ratio);
+}
+
 function renderVoice(project: Project, p: PadParams, voice: Voice, out: StereoBuffer, limit: number): number {
   const s = voiceSource(project, p, voice);
   if (!s) return voice.start;
@@ -188,10 +199,11 @@ function renderVoice(project: Project, p: PadParams, voice: Voice, out: StereoBu
     const i = startF + Math.floor(pos);
     const f = pos - Math.floor(pos);
     const j = Math.min(i + 1, endF - 1);
+    // Attack and release are straight lines; the release ends where the played range (HOLD) ends. Where they overlap
+    // the envelope follows the lower one, turning at length × A / (A + R) as in the firmware.
     let env = 1;
-    if (attack && k < attack) env *= k / attack;
-    // Fade-out over the release time, ending where the played range ends.
-    if (release && natural !== Infinity && natural - k < release) env *= Math.max(0, natural - k) / release;
+    if (attack && k < attack) env = k / attack;
+    if (release && natural !== Infinity && natural - k < release) env = Math.min(env, Math.max(0, natural - k) / release);
     if (o >= voice.stop) env *= Math.max(0, 1 - (o - voice.stop) / stopFade);
     out.left[o] += (srcL[i] + (srcL[j] - srcL[i]) * f) * gainL * env;
     out.right[o] += (srcR[i] + (srcR[j] - srcR[i]) * f) * gainR * env;
@@ -258,6 +270,8 @@ export function renderStems(
   for (const v of voices) {
     const p = pads[v.pad];
     const mine = lastByPad.get(v.pad);
+    // ONE SHOT: the pad plays to its end and ignores new hits until then.
+    if (p.oneShot && mine && mine.start + naturalFrames(project, p, mine) > v.start) continue;
     if (p.loop && !p.gate && mine && mine.stop > v.start) {
       mine.stop = v.start;
       mine.gated = false;

@@ -266,3 +266,15 @@ test("PADCONF: an untouched project has every bank at 127", () => {
   fs.writeFileSync(path.join(dir, "PADCONF.BIN"), makePadConf());
   assert.deepEqual(readPadConf(path.join(dir, "PADCONF.BIN")).bankVolume, new Array(10).fill(127));
 });
+
+test("PADCONF: VINYL is word 17; word 10 holds Fixed Velocity (bit 0) and One Shot (bit 5); PLAY bit 0 = reverse", () => {
+  const dir = writeProject(tempDir(), {
+    samples: [
+      { pad: 0, left: dc(10), words: { [W.vinyl]: 1, [W.mode]: 0, [W.reverse]: 2 } },
+      { pad: 1, left: dc(10), words: { [W.vinyl]: 0, [W.mode]: 0x21, [W.reverse]: 3 } },
+    ],
+  });
+  const [a, b] = readPadConf(path.join(dir, "PADCONF.BIN")).pads;
+  assert.deepEqual([a.vinyl, a.fixedVelocity, a.oneShot, a.reverse], [true, false, false, false]);
+  assert.deepEqual([b.vinyl, b.fixedVelocity, b.oneShot, b.reverse], [false, true, true, true]);
+});

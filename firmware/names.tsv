@@ -10,3 +10,39 @@
 0x67fe0e96	sx_pattern_convert	Converts SP-404SX patterns (12 pads/bank) to the MKII layout
 0x6809d540	engine_set_pad_param	Sends a parameter to the voice(s) playing a pad
 0x68068758	voice_set_param	Voice parameter handler (param 6 = bank volume x100)
+0x67fe8cb8	smplcharge_init	CSmplCharge::Init (debug string): voice note-on. Loads bank volume (prm 0x35+pad/16)x100 into voice[0x2b], sets up the envelope, the VARI stretch window (word 10 bits 1-2: 600/400/800) and the pitch ratio from words 13/14
+0x68068858	env_setup	Envelope breakpoints from attack/hold/release (words 22/23/24): attack and release = value*144000/127 frames (127 = 3 s at 48 kHz); hold end = start + len*hold/100; release ends at the hold end; if they overlap they meet at len*A/(A+R)
+0x67fe8bd8	env_release_on_stop	Release on note-off: release frames = R*144000/127, counted in 64-frame blocks (0x1fc0 = 127*64); no fade when shorter than 8128 frames (R < 7.2); capped at what's left of the sample
+0x68088b98	prm_name	Parameter ID -> on-screen label (BANK A VOLUME, VINYL = 0x77/word 17, Polyphonic = 0x70/word 10, PLAY = 0x75/word 15, PAN, Attack/Hold/Release = 0x7d/0x7e/0x7f, One Shot Trig = 0x100, Fixed Velocity = 0xf5, ...)
+0x680a34f8	prm_get	General parameter getter: IDs < 0x80 -> current project; 0xf3/0xf5/0xf6/0x100 = bit fields of pad word 10 (bits 3-4, Fixed Velocity bit 0, TS type bits 1-2, One Shot bit 5); 0x104..0x114 -> per-pad extras; others -> system
+0x6809f978	prj_get_current	prj_get_param on the current project struct (global 0x82e2cd08)
+0x68032ec8	sys_setting_name	System setting index -> label (jump table, 0x1d5 entries): 0x13f PTN Change Mode, 0x143 Reverse Type, 0x140 Pop-up Time, 0x146 MIDI Mode, ... UTILITY/system settings labels incl. "PTN Change Mode" (MK2/SX pattern continuation) and "Reverse Type": both are system settings, not project data
+0x680235d2	file_type_by_ext	Classifies project files by name/extension (PADCONF.BIN, .SMP, .CHN, .BIN, .AIF, .BMP, QSPI.bin)
+0x6804fc48	project_folder_size	Walks SMPL/, PTN/, PICTURE/ of a project and sums sizes
+0x6801f928	project_dir_path	Formats "%s/PROJECT_%02d"
+0x680a8910	sx_import_detect	Looks for SP-404SX data (SMPL, PTN, PAD_INFO.BIN, STPINFO.BIN) on A:/
+0x67fd22e8	ptn_file_copy	Reads PTN 8-byte records skipping filler (byte1 0x80) and end (0x8c) records, then rewrites them; pattern copy/convert helper
+0x6801afb8	multipad_export_paths	MULTIPAD export file names (%s/MULTIPAD/%s/PTN_%s-%d/PAD_%s_%02d_%s.WAV)
+0x681174e8	export_status_labels	Export PROJ/SMPL/MULTIPAD progress labels
+0x68117f50	import_project_label	"Import PROJ:%02d"
+0x680d96e0	debug_param_viewer	Debug menu: shows parameter group/ID, min/max/value and name strings
+0x6808d1e8	ptn_settings_labels	Pattern settings labels: TIME SIGN., BPM, QTZ, LOOP LENGTH, COUNT-IN, METRO MODE, REC MODE, SHUFFLE, VELOCITY ...
+0x6808f248	bank_sync_gate_toggle	Bank-wide SYNC ON/OFF and GATE ON/OFF messages ("BANK %c SYNC ON")
+0x68092948	chain_file_name	Formats "%s_%02d.CHN"
+0x680f73f0	smf_pattern_import_done	CSmplMsgManager::SmplPatternImportSMFDone
+0x680f6780	smpl_reply_prm_value	CSmplMsgManager::ReplyPrmValue (id, smpl, retval)
+0x681422e8	chop_exe	CChop::ExeChop
+0x67fe1ec8	xml_header	Writes the XML header (pattern chain files)
+0x680ae598	wav_riff_parse	RIFF/WAVE fmt/data chunk parsing (sample import)
+0x680c0d70	aiff_parse	AIFF import
+0x681649a0	mp3_layer3_decode	libmad layer3.c (MP3 import)
+0x6802b262	update_app1	Firmware update: a:/SP404MKII_APP1.bin
+0x680c5306	update_app0	Firmware update: a:/SP404MKII_APP0.bin
+0x68150928	padconf_load	Reads PADCONF.BIN: header words into the project struct (file 0x10 -> mem 0x28, bank words 0x40 -> 0x58, bank volumes 0x6c -> 0x84), project name at 0x98, then pad records; file offset = mem offset - 0x18 in the header
+0x680a47d8	prm_set	General parameter setter (mirror of prm_get); setting One Shot (0x100) also clears GATE (0x6a), LOOP (0x6b) and TOP (0x72)
+0x6808ac28	prm_value_text	Parameter value -> display text: PLAY 0..3 = Normal-A/Reverse-A/Normal-B/Reverse-B; SPEED shows SYNC when TEMPO SYNC is on; VINYL No/Yes; 0xf6 Off/Backing/Ensemble/TBD2; pan L%d/R%d with 13/115 = MONO
+0x6809bcb0	sys_get	System setting getter (object 0x80591adc, index): 0x13f PTN Change Mode, 0x143 Reverse Type, 0x13d, 0xd6 ...
+0x680a8080	post_cmd	Posts an engine command (debug names: CMD_SYS_START 3, CMD_ALL_SOUND_OFF 5, CMD_SEQ_SOUND_OFF 0x2a, CMD_SAMPLE_REC_START 0x17/STOP 0x18)
+0x6809ba78	seq_stop_voices	post_cmd(6, 0) and post_cmd(6, 0x14): stops sounding pads (called on a pattern change when PTN Change Mode = 0)
+0x680d0488	ptn_select_change	Pattern change: when the new pattern differs and PTN Change Mode = 0 (MK2), calls seq_stop_voices first; same pattern -> no cut
+0x68002268	ptn_change_queue	Queued pattern change (same MK2/SX rule as ptn_select_change)

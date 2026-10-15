@@ -204,7 +204,7 @@ test("envelopes run in the sample's own time: at double speed, attack 127 takes 
 });
 
 test("envelopes scale with SPEED on time-stretched pads too", () => {
-  const p = project({ samples: [{ pad: 0, left: dc(4 * SEC), words: { [W.mode]: 0, [W.attack]: 127, [W.speed]: 15000 } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }], bars: 2 }] });
+  const p = project({ samples: [{ pad: 0, left: dc(4 * SEC), words: { [W.vinyl]: 0, [W.attack]: 127, [W.speed]: 15000 } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }], bars: 2 }] });
   const r = renderStems(p, [1], {}, CUT);
   close(r.mix.left[1 * SEC] / r.mix.left[2.5 * SEC], 0.5, 0.03); // 3 s / 1.5 = 2 s ramp: half way at 1 s
 });
@@ -339,7 +339,7 @@ test("BPM sync without VINYL changes length but not pitch", () => {
   const sine = Float32Array.from({ length: SEC }, (_, i) => 0.5 * Math.sin((2 * Math.PI * 1000 * i) / SEC));
   const p = project({
     bpm: 120,
-    samples: [{ pad: 0, left: sine, words: { [W.mode]: 0, [W.bpmSync]: 1, [W.bpm]: 6000 } }],
+    samples: [{ pad: 0, left: sine, words: { [W.vinyl]: 0, [W.bpmSync]: 1, [W.bpm]: 6000 } }],
     patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }] }],
   });
   const r = renderStems(p, [1], {}, CUT);
@@ -350,16 +350,46 @@ test("BPM sync without VINYL changes length but not pitch", () => {
   assert.ok(Math.abs(crossings - 100) <= 3, `${crossings} cycles in 0.1 s`);
 });
 
-test("VINYL ignores BPM sync and its stale SPEED: only the pitch sets the rate", () => {
-  // ORANGUTANGO B9: VINYL, synced at 93.03 BPM in a 77 BPM project, pitch -4, speed 0.92. Plays at 2^(-4/12).
+test("ORANGUTANGO B9 is not VINYL (word 17 = 0): synced, it keeps its pitch and stretches to the tempo", () => {
+  // Fixed Velocity (word 10 bit 0) is set, as on the flutes; it must not switch on VINYL.
   const p = project({
     bpm: 77,
-    samples: [{ pad: 0, left: dc(SEC), words: { [W.bpmSync]: 1, [W.bpm]: 9303, [W.pitch]: -4, [W.speed]: 9200 } }],
+    samples: [{ pad: 0, left: dc(SEC), words: { [W.vinyl]: 0, [W.mode]: 1, [W.bpmSync]: 1, [W.bpm]: 9303, [W.pitch]: -4, [W.speed]: 9200 } }],
     patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }] }],
   });
   const end = lastSound(renderStems(p, [1], {}, CUT).mix);
-  const expect = (SEC - 1) * Math.pow(2, 4 / 12);
-  assert.ok(Math.abs(end - expect) <= 3, `ended at ${end}, expected ~${expect}`);
+  const expect = SEC * (93.03 / 77);
+  assert.ok(Math.abs(end - expect) < 0.02 * SEC, `ended at ${end}, expected ~${expect}`);
+});
+
+test("VINYL with BPM sync follows the tempo with pitch (assumed): rate = pitch × tempo/BPM", () => {
+  const p = project({ bpm: 120, samples: [{ pad: 0, left: dc(SEC), words: { [W.bpmSync]: 1, [W.bpm]: 6000, [W.pitch]: -12 } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }] }] });
+  const end = lastSound(renderStems(p, [1], {}, CUT).mix);
+  assert.ok(Math.abs(end - (SEC - 1)) <= 3, `ended at ${end}`); // ×2 for the tempo, ×0.5 for the pitch
+});
+
+test("ONE SHOT: a pad plays to its end and ignores hits until then", () => {
+  const p = project({ samples: [{ pad: 0, left: dc(SEC / 2), words: { [W.mode]: 0x20 } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }, { tick: 120, pad: 0 }, { tick: 960, pad: 0 }] }] });
+  const r = renderStems(p, [1], {}, CUT);
+  assert.deepEqual(r.timeline.hits.map((h) => h.start), [0, 960 * TICK]);
+  assert.equal(r.timeline.hits[0].cut, undefined);
+});
+
+test("PLAY: only odd values (Reverse-A, Reverse-B) play backwards", () => {
+  const ramp = Float32Array.from({ length: 1000 }, (_, i) => i / 2000);
+  for (const [play, backwards] of [[1, true], [2, false], [3, true]] as const) {
+    const p = project({ samples: [{ pad: 0, left: ramp, words: { [W.reverse]: play } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }] }] });
+    const r = renderStems(p, [1], {}, CUT);
+    assert.equal(r.mix.left[0] > r.mix.left[500], backwards, `PLAY ${play}`);
+  }
+});
+
+test("overlapping attack and release meet where the two lines cross", () => {
+  // 2 s sample, attack 127 (3 s) and release 127 (3 s): they cross at 1 s, at level 1/3.
+  const p = project({ samples: [{ pad: 0, left: dc(2 * SEC), words: { [W.attack]: 127, [W.release]: 127 } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }], bars: 2 }] });
+  const r = renderStems(p, [1], {}, CUT);
+  close(r.mix.left[SEC], 0.5 / 3, 2e-3);
+  close(r.mix.left[0.5 * SEC], 0.5 * (0.5 / 3), 2e-3);
 });
 
 test("VINYL without sync: SPEED and pitch multiply", () => {

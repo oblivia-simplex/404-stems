@@ -23,7 +23,10 @@ export interface PadParams {
   bpm: number;
   pitch: number; // semitones
   fine: number; // cents
-  reverse: boolean;
+  reverse: boolean; // PLAY (word 15) bit 0: 0 Normal-A, 1 Reverse-A, 2 Normal-B, 3 Reverse-B ("-B" not decoded)
+  vinyl: boolean; // word 17 (firmware labels it VINYL)
+  fixedVelocity: boolean; // word 10 bit 0
+  oneShot: boolean; // word 10 bit 5: plays to the end, ignores hits while sounding
   speed: number; // 1.0 = 100%
   pan: number; // 0..127, 64 = centre
   attack: number; // envelope fade-in, 0..127 (127 = 3 s)
@@ -91,7 +94,10 @@ export function readPadConf(file: string): PadConf {
       bpm: w[9] / 100,
       pitch: w[13],
       fine: w[14],
-      reverse: w[15] !== 0,
+      reverse: (w[15] & 1) !== 0,
+      vinyl: w[17] === 1,
+      fixedVelocity: (w[10] & 1) !== 0,
+      oneShot: (w[10] & 0x20) !== 0,
       speed: w[16] / 10000,
       pan: w[18],
       attack: w[22],
