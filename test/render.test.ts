@@ -160,6 +160,14 @@ test("the release ends at the hold point (measured on the unit: hold 50 + releas
   assert.ok(silent(r.mix, 2 * SEC, 3 * SEC));
 });
 
+test("gate: letting go starts a linear release of the full release time (measured on the unit: release 60 = 1.417 s)", () => {
+  const p = project({ samples: [{ pad: 0, left: dc(4 * SEC), words: { [W.gate]: 1, [W.release]: 60 } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0, length: 120 }] }, { number: 2, notes: [], bars: 2 }] });
+  const r = renderStems(p, [1, 2], {}, CUT);
+  const off = 120 * TICK, T = (60 / 127) * 3 * SEC;
+  close(r.mix.left[Math.round(off + T / 2)], 0.25, 2e-3);
+  assert.ok(silent(r.mix, Math.round(off + T) + 2, r.frames));
+});
+
 test("hold plays only part of the sample", () => {
   const p = project({ samples: [{ pad: 0, left: dc(1000), words: { [W.hold]: 50 } }], patterns: [{ number: 1, notes: [{ tick: 0, pad: 0 }] }] });
   assert.equal(lastSound(renderStems(p, [1], {}, CUT).mix), 498);
