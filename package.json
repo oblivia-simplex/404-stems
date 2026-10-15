@@ -1,0 +1,21 @@
+{
+  "name": "sp404-stems",
+  "version": "0.1.0",
+  "description": "Export stems from SP-404MKII patterns and chains, and copy projects off the unit over USB",
+  "license": "GPL-3.0-or-later",
+  "author": "Olivia Lucca Fraser",
+  "type": "module",
+  "main": "dist/stems.js",
+  "bin": {
+    "sp404-stems": "dist/stems.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "stems": "tsx src/stems.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}

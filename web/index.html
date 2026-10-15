@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SP-404 Stems</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>SP-404 Stems</h1>
+    <form id="root-form" class="root">
+      <label for="root">Projects folder</label>
+      <input id="root" spellcheck="false">
+      <button type="submit">Scan</button>
+    </form>
+    <label class="project-pick">
+      <span>Project</span>
+      <select id="project"></select>
+    </label>
+  </header>
+
+  <main class="layout">
+    <aside class="panel sequences">
+      <h2>Patterns</h2>
+      <ul id="patterns" class="seq-list"></ul>
+      <h2>Chains</h2>
+      <ul id="chains" class="seq-list"></ul>
+    </aside>
+
+    <section class="wall-wrap">
+      <p id="hint" class="hint">Click or drag across pads to put them in the selected stem. Right-click a pad to hear it.</p>
+      <div id="wall" class="wall"></div>
+    </section>
+
+    <aside class="panel stems">
+      <div class="row between">
+        <h2>Stems</h2>
+        <div class="row gap">
+          <button id="group-banks" class="quiet" title="One stem per bank">By bank</button>
+          <button id="add-group" class="quiet">New stem</button>
+        </div>
+      </div>
+      <ul id="groups" class="groups"></ul>
+
+      <div id="render-box" class="render-box" hidden>
+        <h2 id="render-title"></h2>
+        <div class="fields">
+          <label>BPM override <input id="bpm" type="number" step="0.01" min="40" max="300"></label>
+          <label>Tails
+            <select id="tail">
+              <option value="cut">Cut at pattern end</option>
+              <option value="wrap">Wrap to start (loopable)</option>
+              <option value="extend">Let ring out</option>
+            </select>
+          </label>
+        </div>
+        <button id="preview-mix" class="play-btn">Play full mix</button>
+        <ul id="stem-previews" class="stem-previews"></ul>
+        <label class="out">Save to <input id="out-dir" spellcheck="false"></label>
+        <label class="check"><input id="include-mix" type="checkbox" checked> Also save the full mix</label>
+        <button id="export" class="primary">Export stems</button>
+        <p id="status" class="status" role="status"></p>
+      </div>
+      <p id="pick-hint" class="hint">Pick a pattern or chain to preview and export its stems.</p>
+    </aside>
+  </main>
+  <audio id="player"></audio>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
