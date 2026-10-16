@@ -1,6 +1,6 @@
 {
   "name": "sp404-stems",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "Export stems from SP-404MKII patterns and chains, and copy projects off the unit over USB",
   "license": "GPL-3.0-or-later",
   "author": "Olivia Lucca Fraser",
