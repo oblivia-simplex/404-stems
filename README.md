@@ -49,6 +49,17 @@ npm run typecheck
 
 The tests build synthetic projects (`test/support/fixtures.ts`) and talk to a simulated SP-404MKII (`test/support/fakeSp404.ts`), so they don't need the hardware.
 
+## Building packages
+
+```bash
+make mac     # .dmg and .zip for Apple silicon and Intel (needs macOS)
+make win     # Windows portable .exe and .zip, x64 and arm64 (needs Docker)
+make linux   # .deb packages for Debian and Ubuntu, amd64 and arm64 (needs Docker)
+make dist    # runs the tests, then builds all three
+```
+
+Packages land in `release/` and are unsigned. Windows and Linux build inside electron-builder's official Docker image, so they can be made from any machine with Docker; `make clean-docker` removes its cached volumes.
+
 ## Disclaimer
 
 Not affiliated with or endorsed by Roland. The project format and USB protocol were worked out by reverse engineering and may be incomplete. The app only reads from the SD card and the unit; the one exception is "Make a new project", which writes a new folder next to the original and never overwrites an existing one. Keep backups of your projects anyway.

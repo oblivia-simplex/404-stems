@@ -4,6 +4,11 @@
   "description": "Export stems from SP-404MKII patterns and chains, and copy projects off the unit over USB",
   "license": "GPL-3.0-or-later",
   "author": "Olivia Lucca Fraser",
+  "homepage": "https://github.com/oblivia-simplex/404-stems",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oblivia-simplex/404-stems.git"
+  },
   "type": "module",
   "main": "dist/electron/main.js",
   "bin": {
@@ -18,7 +23,10 @@
     "app:build": "tsc && electron-builder --mac --dir",
     "app:dmg": "tsc && electron-builder --mac dmg",
     "test": "node --import tsx --test \"test/**/*.test.ts\"",
-    "typecheck": "tsc --noEmit -p . && tsc -p test"
+    "typecheck": "tsc --noEmit -p . && tsc -p test",
+    "dist:mac": "tsc && electron-builder --mac",
+    "dist:win": "tsc && electron-builder --win",
+    "dist:linux": "tsc && electron-builder --linux"
   },
   "dependencies": {
     "serialport": "^13.0.0"
@@ -43,10 +51,70 @@
     },
     "mac": {
       "category": "public.app-category.music",
+      "identity": null,
       "target": [
-        "dir"
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ]
+    },
+    "npmRebuild": false,
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "deb",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ],
-      "identity": null
+      "category": "AudioVideo",
+      "maintainer": "Olivia Lucca Fraser",
+      "synopsis": "Export stems from SP-404MKII projects"
+    },
+    "deb": {
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0",
+        "libuuid1",
+        "libsecret-1-0"
+      ]
     }
   }
 }
